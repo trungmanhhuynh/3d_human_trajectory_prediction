@@ -1,0 +1,40 @@
+#!/bin/bash
+
+mkdir save
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1
+
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v0
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v1
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v2
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v3
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v4
+
+
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v0/log
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v0/model
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v0/test_result_pts
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v0/train_result_pts
+
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v1/log
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v1/model
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v1/test_result_pts
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v1/train_result_pts
+
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v2/log
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v2/model
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v2/test_result_pts
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v2/train_result_pts
+
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v3/log
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v3/model
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v3/test_result_pts
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v3/train_result_pts
+
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v4/log
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v4/model
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v4/test_result_pts
+mkdir save/Model_LSTM_Scene_I_Sce_H_S_stage1/v4/train_result_pts
+
+
+
+
