@@ -1,7 +1,7 @@
 function interpolate_data
 
 
- inputData = dlmread('my_peds_annotations_raw.txt'); 
+ inputData = dlmread('original_data_meters.txt'); 
 
 % Extract input data file to list of trajectories
  trajList = extract_trajectory(inputData);
@@ -14,7 +14,7 @@ function interpolate_data
  result = convert_trajectory_to_annotation(interpolatedTrajList,min(inputData(:,1)), max(inputData(:,1)));
 
  
- csvwrite('my_peds_annotations_interpolated_raw.txt', result);
+ csvwrite('interpolated_data_meters.txt', result);
 
 end 
 
@@ -63,7 +63,7 @@ function result = interpolate_trajectory(trajList)
           end
       end 
       % Floor all locations data to get integer values
-      result{i}.locations = floor(result{i}.locations); 
+      %result{i}.locations = floor(result{i}.locations); 
  end 
 
 end 

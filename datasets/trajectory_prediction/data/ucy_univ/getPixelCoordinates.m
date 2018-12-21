@@ -1,61 +1,40 @@
-function getPixelCoordinates
-fid = fopen('data_university_students/students003.vsp');
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Script to convert world coordinates
+% to image coordinates
+% by Anirudh Vemula, Aug 8, 2016
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+clear all
 
-% First line contains the number of splines (or pedestrians?)
-tline = fgetl(fid);
-components = strsplit(tline, ' - ');
-numSplines = str2num(cell2mat(components(1)));
+H = dlmread('H.txt');
 
-pixel_pos_frame_ped = [];
+data = dlmread('data_meters_2.5fps.txt');
 
-minDiff = Inf;
-for spline=1:numSplines
-   
-    % First line for each spline contains the number of control
-    % points
-    tline = fgetl(fid);
-    components = strsplit(tline, ' - ');
-    numPoints = str2num(cell2mat(components(1)));
-    oldframe=0;
-    for point=1:numPoints
-       
-        % Each line contains the information x, y, frame_number,
-        % gaze(not needed)
-        tline = fgetl(fid);
-        components = strsplit(tline, ' ');
-        x = str2num(cell2mat(components(1)));
-        y = str2num(cell2mat(components(2)));
-        frame = str2num(cell2mat(components(3)));
-        
-        if point ~= 1
-            minDiff = min(minDiff, frame-oldframe);
-        end
-        oldframe = frame;
-        % Putting x, y in reverse order
-        vec = [frame, spline, x+360 ,288-y];
-        pixel_pos_frame_ped = [pixel_pos_frame_ped ; vec];
-        
-    end
-    
-end
-fprintf('The min diff between subsequent frames is %f\n', minDiff);
+% pos = [xpos ypos 1]
+pos = [data(:,3) data(:,4) ones(size(data,1),1)];
 
-% NOTE x, y coordinates are recorded assuming center of the frame
-% is (0,0)
+% Assuming H converts world coordinates to image coordinates
+pixel_pos_unnormalized = pinv(H) * pos';
 
-[Y,I] = sort(pixel_pos_frame_ped(:,1));
-pixel_pos_frame_ped_sorted = pixel_pos_frame_ped(I,:);
-pixel_pos_frame_ped = pixel_pos_frame_ped_sorted;
-pixel_pos_frame_ped(:,1) = pixel_pos_frame_ped(:,1) + 1 ;
-csvwrite('my_peds_annotations_raw.txt', pixel_pos_frame_ped);
+% Normalize pixel pos
+% Each column contains [u; v] 
+pixel_pos_normalized = bsxfun(@rdivide, pixel_pos_unnormalized([1,2],:), ...
+                              pixel_pos_unnormalized(3,:));
 
 
-%pixel_pos_frame_ped(1, :) = floor(pixel_pos_frame_ped(1, :) / 4);
+% Add frame number and pedestrian ID information to the matrix
+pixel_pos_frame_ped = [data(:,1)'; data(:,2)';pixel_pos_normalized];
 
-%pixel_pos_frame_ped(3,:) = pixel_pos_frame_ped(3,:) / 576;
-%pixel_pos_frame_ped(4,:) = pixel_pos_frame_ped(4,:) / 720;
+% pixel_pos_frame_ped 3rd row is y, 4th row is x
+% Normalize the coordinates
+%pixel_pos_frame_ped(3,:) = pixel_pos_frame_ped(3,:) / 480;
+%pixel_pos_frame_ped(4,:) = pixel_pos_frame_ped(4,:) / 640;
 
+% pixel_pos_frame_ped 3rd row is x, 4th row is y
+temp = pixel_pos_frame_ped(3,:) ; 
+pixel_pos_frame_ped(3,:) = pixel_pos_frame_ped(4,:)  ;
+pixel_pos_frame_ped(4,:) = temp ;
+
+% Save the positions to a mat file
 %save('pixel_pos.mat', 'pixel_pos_frame_ped');
+csvwrite('data_pixels_2.5fps.txt', pixel_pos_frame_ped');
 
-
-end
