@@ -16,18 +16,16 @@ class DataLoader():
     def __init__(self, args, logger , train= False):
 
         # List of data directories where raw data resides
-        self.dataset_dirs = ['./datasets/trajectory_prediction/eth_hotel', 
-                             './datasets/trajectory_prediction/eth_univ' ,
-                             './datasets/trajectory_prediction/ucy_univ' , 
-                             './datasets/trajectory_prediction/ucy_zara01',
-                             './datasets/trajectory_prediction/ucy_zara02',
-                             './datasets/trajectory_prediction/towncenter', 
-                             './datasets/trajectory_prediction/PETS09-S2L1',
-                             './datasets/trajectory_prediction/PETS09-S2L2',
-                             './datasets/trajectory_prediction/PETS09-S2L3']
+        self.dataset_dirs = ['./datasets/trajectory_prediction/data/eth_hotel', 
+                             './datasets/trajectory_prediction/data/eth_univ' ,
+                             './datasets/trajectory_prediction/data/ucy_univ' , 
+                             './datasets/trajectory_prediction/data/ucy_zara01',
+                             './datasets/trajectory_prediction/data/ucy_zara02']
+             
 
         self.logger = logger           
-        self.used_datasets = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        self.used_datasets = [0, 1, 2, 3, 4]
+        self.input_metric = args.input_metric
 
         if(train):
             # all the train_dataset will be used to train the model
@@ -49,14 +47,19 @@ class DataLoader():
         self.used_data_dirs = [self.dataset_dirs[x] for x in self.used_datasets]
         self.num_datasets = len(self.used_data_dirs)                          # Number of datasets
         self.data_dir = './datasets/trajectory_prediction'                                       # Where the pre-processed pickle file resides             
-        data_file = os.path.join(self.data_dir, "trajectories.cpkl")          # Where the pre-processed pickle file resides
-        print("Dataset used :", self.used_data_dirs )
+        
+        if(self.input_metric is "meters"):
+            data_file = os.path.join(self.data_dir, "trajectories_meters.cpkl")          # Where the pre-processed pickle file resides
+        elif(self.input_metric is "pixels"):
+            data_file = os.path.join(self.data_dir, "trajectories_pixels.cpkl")
+        else:
+            print("UTIL:Invalid input metric") 
+            sys.exit(0) 
 
+        print("Dataset used :", self.used_data_dirs )
         # Assign testing flag 
         self.train = train
-        self.skip_frame = args.skip_frame
         self.pre_process = args.pre_process
-
         self.tsteps = args.observe_length + args.predict_length
 
         # 
@@ -97,25 +100,22 @@ class DataLoader():
             all_batches.append([])
 
             # Load the data from the  file
-            file_path = os.path.join(directory, 'peds_data(-1,1).txt')
+            if(self.input_metric is "meters"):
+                file_path = os.path.join(directory, 'data_normalized_meters_2.5fps.txt')
+            elif(self.input_metric is "pixels"):
+                file_path = os.path.join(directory, 'data_normalized_pixels_2.5fps.txt')
+            else: 
+                print("UTIL:Invalid input metric") 
+                sys.exit(0) 
+
             data = np.genfromtxt(file_path, delimiter=',')
 
             # Get all frame numbers of the current dataset
             frameList = np.unique(data[:,0]).tolist()            
 
-            if(dataset_id == 6 or dataset_id == 7 or dataset_id == 8): # if they are PETS09 datasets
-                self.skip_frame = 1 
-            else:
-                self.skip_frame = 10 
-
-
             # Read frame-by-frame and store them to a temporary data for this dataset 
             dataset_data = [] 
             for ind, frame in enumerate(frameList):
-
-                # SKip every n frames to downgrade video fps to 25
-                if ind % self.skip_frame != 0:
-                    continue
 
                 # Extract all pedestrians in current frame
                 pedDataInFrame = data[data[:,0] == frame,:]   # [frameId, targetId, x ,y]
@@ -126,7 +126,7 @@ class DataLoader():
             # number of frames of refined datasetdata
             nFrames = len(dataset_data)
             nBatches = nFrames - (self.tsteps + 1)
-            self.logger.write("{}: {} --> {} frames (skipped {} frames) ".format(directory , len(frameList), nFrames, self.skip_frame))
+            self.logger.write("{}: {} --> {} frames ".format(directory , len(frameList), nFrames))
 
             for i in range(0,  nFrames - (self.tsteps + 1)):
 
@@ -425,3 +425,5 @@ class Logger():
         else:
             with open(self.test_screen_log_file_path, 'a') as f:
                 f.write(s + "\n")
+
+

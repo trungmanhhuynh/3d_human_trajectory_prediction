@@ -16,10 +16,10 @@ from models.Alahi_Social_LSTM import Alahi_Social_LSTM
 from models.Model_LSTM_1L import Model_LSTM_1L
 from models.Model_LSTM_Scene import *
 
-from evaluate import *
-from utils import *
+from utils.evaluate import *
+from utils.data_loader import *
+from utils.visualize import *
 from config import *
-from visualize import *
 from grid import get_allow_grids
 from sample import *
 
@@ -39,15 +39,16 @@ from sample import *
 '''
 
 # Select model 
-model= Model_LSTM_Scene
-model_dir = "Model_LSTM_Scene_I_Sce_H_S_stage1"
+model= Model_LSTM_1L
+model_dir = "removable"
 #previous_model_dir = "Model_LSTM_Scene_I_Sce_Hard"
 
 # Parsing paramters from config file 
 args.log_dir = './save/{}/v{}/log'.format(model_dir, args.model_dataset)
 args.save_model_dir =  './save/{}/v{}/model'.format(model_dir,args.model_dataset)
 args.num_train_datasets = len(args.train_dataset)
-args.num_total_datasets = 9
+args.num_total_datasets = 5
+
 # Parameters
 best_MSE_validation = 100000; 
 best_epoch = 10000000

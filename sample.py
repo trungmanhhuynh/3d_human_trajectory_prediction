@@ -17,10 +17,10 @@ from models.Alahi_Social_LSTM import Alahi_Social_LSTM
 from models.Model_LSTM_1L import Model_LSTM_1L
 from models.Model_LSTM_Scene import *
 
-from evaluate import *
-from utils import *
+from utils.evaluate import *
+from utils.data_loader import *
+from utils.visualize import *
 from config import *
-from visualize import *
 from grid import get_allow_grids
 from sample import *
 
@@ -192,32 +192,35 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
             # save the results.
             result_pts.append(xabs.cpu().data.numpy())
-            #result_ids.append(predicted_pids)
-
-
-        #print("true_data =", batch["batch_data_absolute"])
-        #print("predicted_data =", result_pts)
-        #print("predicted_pids =", predicted_pids)
-        #   input("here")
 
         # calculate mse of this batch 
-        mse_valid, batch_mse = calculate_mean_square_error(batch, result_pts, predicted_pids, args)
+        mse_valid, batch_mse, numPeds = calculate_mean_square_error(batch, result_pts, predicted_pids, args)
         if(mse_valid):
             mse = mse + batch_mse
-            mse_batch_cnts = mse_batch_cnts + 1
+            mse_batch_cnts = mse_batch_cnts + numPeds
         # calculate nde of this batch
-        nde_valid, batch_nde = calculate_mean_square_error_nonlinear(batch, result_pts, predicted_pids, args)
+        nde_valid, batch_nde, numPeds = calculate_mean_square_error_nonlinear(batch, result_pts, predicted_pids, args)
         if(nde_valid):
             nde = nde + batch_nde
-            nde_batch_cnts = nde_batch_cnts + 1
+            nde_batch_cnts = nde_batch_cnts + numPeds
         # calculate fde of this batch 
-        fde_valid, batch_fde = calculate_final_displacement_error(batch, result_pts, predicted_pids, args)
+        fde_valid, batch_fde, numPeds = calculate_final_displacement_error(batch, result_pts, predicted_pids, args)
         if(fde_valid):
-            nde = nde + batch_nde
-            fde_batch_cnts = fde_batch_cnts + 1
-        # calculate fde of this batch 
+            fde = fde + batch_fde
+            fde_batch_cnts = fde_batch_cnts + numPeds
+     
+
+        # Save trajectories 
+        #plot_trajectory_pts_on_images(batch, i, result_pts, predicted_pids, args)
+
+
 
     # Final mse, nde , fde 
+    print("mse =", mse)
+    print("mse_batch_cnt", mse_batch_cnts)
+
+    print("fde =", fde)
+    print("fde_batch_cnts", fde_batch_cnts)
     mse = mse/mse_batch_cnts
     nde = nde/nde_batch_cnts
     fde = fde/fde_batch_cnts

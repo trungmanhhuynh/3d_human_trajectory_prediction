@@ -13,14 +13,15 @@ from matplotlib import pyplot as plt
 import numpy as np
 
 from models.Alahi_Social_LSTM import Alahi_Social_LSTM
-from models.Model_Linear import Model_Linear
+#from models.Model_Linear import Model_Linear
 from models.Model_LSTM_1L import Model_LSTM_1L
 from models.Model_LSTM_Scene import *
 
-from evaluate import *
-from utils import *
+from utils.evaluate import *
+from utils.data_loader import *
+from utils.visualize import *
+
 from config import *
-from visualize import *
 from grid import get_allow_grids
 from sample import *
 
@@ -33,8 +34,8 @@ from sample import *
 '''
 
 # Select model 
-model= Model_LSTM_Scene
-model_dir = "Model_LSTM_Scene_nonlineargrids_stage2_train50"
+model= Model_LSTM_1L
+model_dir = "Model_LSTM_1L_stage1_meters"
 
 # ---Parsing paramters from config file 
 args.log_dir = './save/{}/v{}/log'.format(model_dir, args.test_dataset)
@@ -60,7 +61,6 @@ print("loading best trained model at {}".format(save_model_file))
 mse, nonLinearMSE, fde = sample(model, data_loader, save_model_file, args, test = True)
 
 #--- Print out results
-logger.write('Testing: mse = {}, fde = {}, non-linear mse = {} '\
-        .format(mse, fde,nonLinearMSE ))
+logger.write('Testing: mse = {}, non-linear mse = {}, fde = {}'.format(mse, nonLinearMSE, fde))
 
 
