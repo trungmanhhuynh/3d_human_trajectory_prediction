@@ -13,33 +13,33 @@
 function normalize_data
 
 pixel = 0 ; % = 1 to normarlize pixels to a specified range
-            % = 0 to normalize meters range [0, 20] to a specified range
+            % = 0 to normalize meters range to a specified range
 filename = strcat('data_meters_2.5fps.txt');
+mode = 1 ; % convert to range [-1,1]
 inputData = dlmread(filename); 
   
 if(pixel)
-    frameWidth  = 720; 
-    frameHeight = 576;  
+    maxWidth  = 720; minWidth = 0 ;
+    maxHeight = 576; minHeight = 0 ;
 else
-    frameWidth  = 20 ; 
-    frameHeight = 20 ;    
+    maxWidth  = max(inputData(:,3)) ;  minWidth  = min(inputData(:,3)) ;
+    maxHeight  = max(inputData(:,4)) ;  minHeight  = min(inputData(:,4)) ;
+ 
 end 
 
 normalizedData = inputData ; 
-mode = 1 ; % convert to range [-1,1]
-
 if(mode ==0)
     disp("Normalize (x,y) locations into range [0,1]")
     normalizedData(:,3) = normalizedData(:,3)/frameWidth ; % normalize x
     normalizedData(:,4) = normalizedData(:,4)/frameHeight ; % normalize y
-    % Write file 
+    % Write file     
     outfile = strcat('..\data\',dataset,'\',dataset,'_data(0,1).txt');
     csvwrite(outfile, normalizedData);
     disp("Done");
 elseif(mode == 1) 
     disp("Normalize (x,y) locations into range [-1,1]")
-    normalizedData(:,3) = 2*normalizedData(:,3)/frameWidth -1 ; % normalize x
-    normalizedData(:,4) = 2*normalizedData(:,4)/frameHeight -1 ; % normalize y
+    normalizedData(:,3) = 2*(normalizedData(:,3) - minWidth)/(maxWidth - minWidth) -1 ; % normalize x
+    normalizedData(:,4) = 2*(normalizedData(:,4) - minHeight)/(maxHeight - minHeight) -1 ; % normalize y
     % Write file 
     csvwrite('data_normalized_meters_2.5fps.txt', normalizedData);
     disp("Done")

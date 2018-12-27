@@ -21,7 +21,7 @@ meter_pos = bsxfun(@rdivide, meter_pos([1,2],:), ...
 meter_pos = meter_pos';
 
 meter_pos = [data(:,[1 2]) ,meter_pos];
-csvwrite('data_meter_2.5fps.txt', meter_pos);
+csvwrite('data_meters_2.5fps.txt', meter_pos);
 fprintf("done\n")
 
 end 

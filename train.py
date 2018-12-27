@@ -40,7 +40,7 @@ from sample import *
 
 # Select model 
 model= Model_LSTM_1L
-model_dir = "removable"
+model_dir = "Model_LSTM_1L_stage1_meters"
 #previous_model_dir = "Model_LSTM_Scene_I_Sce_Hard"
 
 # Parsing paramters from config file 

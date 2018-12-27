@@ -7,7 +7,7 @@ clear all
 
 H = dlmread('H.txt');
 
-data = dlmread('data_meters_2.5fps.txt');
+data = dlmread('my_data_meters.txt');
 
 % pos = [xpos ypos 1]
 pos = [data(:,3) data(:,4) ones(size(data,1),1)];
@@ -36,5 +36,5 @@ pixel_pos_frame_ped(4,:) = temp ;
 
 % Save the positions to a mat file
 %save('pixel_pos.mat', 'pixel_pos_frame_ped');
-csvwrite('data_pixels_2.5fps.txt', pixel_pos_frame_ped');
+csvwrite('data_pixels.txt', pixel_pos_frame_ped');
 

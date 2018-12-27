@@ -7,7 +7,7 @@
 function get_data_2dot5_fps
 
     %interpolated_data_meters is at 25fps 
-    data = dlmread('interpolated_data_meters.txt');
+    data = dlmread('data_meters.txt');
     
     frame_list = unique(data(:,1));
     data_meters_2dot5_fps = [] ;
