@@ -20,7 +20,7 @@ def calculate_mean_square_error(batch, results, predicted_pids, args):
 	# Only care about peds that has obverve length = args.obsever_length 
 	for pedId in predicted_pids:
 		isSelected = True 
-		for t in range(0,args.observe_length):
+		for t in range(0,args.observe_length ):
 			presentIdx = np.where( batch["ped_ids_frame"][t] == pedId)[0]
 			if(presentIdx.size == 0): # if predicted peds does not have enough
 				isSelected = False 	  # T_obs + T_predict frames

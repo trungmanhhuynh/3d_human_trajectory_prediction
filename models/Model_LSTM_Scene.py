@@ -1,5 +1,5 @@
 '''
- Scene Model with Gates
+ Scene Model
  Author: Huynh Manh
 
 '''
@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup as Soup
 import numpy as np
 import glob
 from grid import *
+from measure_grid_diversity import get_sub_grid_cell_index
 
 def logsumexp(x):
     x_max, _ = x.max(dim=1,keepdim=True)
@@ -222,32 +223,18 @@ class Model_LSTM_Scene(nn.Module):
         one_hot = Variable(torch.zeros(1, batch_size, self.inner_grid_num**2))
         if(self.use_cuda):
             one_hot = one_hot.cuda()
-
+        
         # For each ped in the frame
         for pedindex in range(batch_size):
 
             # Get x and y of the current ped
-            current_x, current_y = x_t[pedindex, 0].data[0], x_t[pedindex, 1].data[0]
+            ped_location = np.array([0,0])
+            ped_location[0], ped_location[1] = x_t[pedindex, 0].cpu().numpy(), x_t[pedindex, 1].cpu().numpy()
 
-            width_low, width_high = -1 , 1          #scene is in range [-1,1]
-            height_low, height_high = -1 , 1        #scene is in range [-1,1]
-            boundary_size = 2 
-      
-            # calculate the grid cell
-            cell_x = int(np.floor(((current_x - width_low)/boundary_size) * self.inner_grid_num))
-            cell_y = int(np.floor(((current_y - height_low)/boundary_size) * self.inner_grid_num))
+            # Get sub-grid index
+            sub_grid_indx =  get_sub_grid_cell_index(ped_location, self.scene_grid_num, self.inner_grid_num, range =[-1,1,-1,1])
 
-            # Peds locations must be in range of [-1,1], so the cell used must be in range [0,scene_grid_num-1]
-            if(cell_x < 0):
-                cell_x = 0
-            if(cell_x >= self.inner_grid_num):
-                cell_x = self.inner_grid_num - 1
-            if(cell_y < 0):
-                cell_y = 0 
-            if(cell_y >= self.inner_grid_num):
-                cell_y = self.inner_grid_num - 1
-
-            one_hot[:,pedindex,cell_y*self.inner_grid_num + cell_x] = 1 
+            one_hot[:,pedindex,sub_grid_indx] = 1 
 
         return one_hot
 

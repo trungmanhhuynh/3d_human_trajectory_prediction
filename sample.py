@@ -43,6 +43,8 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
     if(args.use_scene):
         scene_h0_list = state['scene_h0_list'].clone()
         scene_c0_list = state['scene_c0_list'].clone()    
+        allow_grid_list = get_allow_grids(data_loader,args)
+        net.allow_grid_list = allow_grid_list
 
     # set number of batches for different modes: test/validation
     if(test):
@@ -113,7 +115,6 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
             # set others model parameters  
             net.batch_size = batch["ped_ids_frame"][t].size
-          
             # Forward pass 
             mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits = net.forward(xoff, xabs)
 
@@ -153,7 +154,7 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
         if(args.use_cuda): 
             xoff  = xoff.cuda()
             xabs  = xabs.cuda()
-        
+
         # Get/Set the hidden states of targets at args.observe_length-1
         indices = np.where(predicted_pids[:,None] ==  batch["ped_ids"][None,:])[1]
         indices = Variable(torch.LongTensor(indices))
@@ -177,8 +178,8 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
 
             # set others model parameters  
-            net.batch_size = batch["ped_ids_frame"][t].size
-          
+            net.batch_size = len(predicted_pids)
+            
             # Forward pass 
             mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits = net.forward(xoff, xabs)
 

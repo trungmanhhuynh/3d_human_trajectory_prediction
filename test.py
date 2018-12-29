@@ -35,7 +35,7 @@ from sample import *
 
 # Select model 
 model= Model_LSTM_1L
-model_dir = "Model_LSTM_1L_stage1_meters"
+model_dir = "Model_LSTM_1L_stage1_pixels"
 
 # ---Parsing paramters from config file 
 args.log_dir = './save/{}/v{}/log'.format(model_dir, args.test_dataset)

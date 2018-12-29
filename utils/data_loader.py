@@ -34,7 +34,7 @@ class DataLoader():
             self.train_dataset = args.train_dataset
             self.valid_dataset = args.train_dataset
             self.val_fraction =  0.2 # 20% batches used for validation  
-            self.train_fraction =  0.8 #20% batches used for training  
+            self.train_fraction =  0.8 # 80% batches used for training  
 
             if(args.stage2):
                 self.val_fraction =  0.5  # 50% batches used for validation  

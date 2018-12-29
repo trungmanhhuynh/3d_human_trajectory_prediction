@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--pre_process',action="store_true", default=False, help='pre-preprocess data')
 parser.add_argument('--use_cuda',action="store_true", default=False, help='using CUDA ?')
 parser.add_argument('--load_best_train',action="store_true", default=False, help='load the best trained model')
-parser.add_argument('--input_metric', type=str, default= 'meters', help='specify input metric(meters or pixels)')
+parser.add_argument('--input_metric', type=str, default= 'pixels', help='specify input metric(meters or pixels)')
 
 # training params
 parser.add_argument('--rnn_size', type=int, default= 128, help='size of RNN hidden state')

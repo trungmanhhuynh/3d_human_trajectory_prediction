@@ -53,7 +53,6 @@ def convert_pixels_to_meters(pixels, dataset_id):
     meters[:,0] = np.divide(meters[:,0],meters[:,2])
     meters[:,1] = np.divide(meters[:,1],meters[:,2])
 
-    print("meters =", meters[:,0:2])
     if(dataset_id == 0 or dataset_id == 1):
         meters[:,0] = meters[:,0] + T1
         meters[:,1] = meters[:,1] + T2;
