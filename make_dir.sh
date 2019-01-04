@@ -1,39 +1,39 @@
 #!/bin/bash
 
 mkdir save
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels
 
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v0
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v1
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v2
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v3
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v4
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v0
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v1
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v2
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v3
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v4
 
 
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v0/log
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v0/model
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v0/test_result_pts
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v0/train_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v0/log
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v0/model
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v0/test_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v0/train_result_pts
 
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v1/log
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v1/model
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v1/test_result_pts
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v1/train_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v1/log
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v1/model
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v1/test_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v1/train_result_pts
 
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v2/log
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v2/model
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v2/test_result_pts
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v2/train_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v2/log
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v2/model
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v2/test_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v2/train_result_pts
 
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v3/log
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v3/model
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v3/test_result_pts
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v3/train_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v3/log
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v3/model
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v3/test_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v3/train_result_pts
 
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v4/log
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v4/model
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v4/test_result_pts
-mkdir save/Model_LSTM_Scene_non_linear_stage1_meters/v4/train_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v4/log
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v4/model
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v4/test_result_pts
+mkdir save/Model_LSTM_Scene_nU16_stage1_pixels/v4/train_result_pts
 
 
 

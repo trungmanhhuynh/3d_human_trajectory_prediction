@@ -1,6 +1,44 @@
 import numpy as np
 
 
+# Function to convert input_metric to output metric
+def convert_input2output_metric(input_location, dataset_id, input_metric,output_metric):
+
+  if(input_metric is "meters"):
+      # if input_metric is normalized meters
+      if output_metric is "normalized_meters":
+          # return the same location
+          output_location =  input_location
+      elif output_metric is "meters":
+          # convert to real meter values
+          output_location = convert_normalized_meters_to_meters(input_location, dataset_id)
+      else: 
+          print("Invalid output metric")
+          exit(0)
+
+  elif input_metric is "pixels":
+      # if input_metric is normalized pixels
+      if(output_metric is "normalized_pixels"):
+          # return the same thing
+          output_location = input_location
+      elif(output_metric is "pixels"):
+          # convert to real pixel values
+          output_location = convert_normalized_pixels_to_pixels(normalized_pixels, dataset_id)   
+      elif output_metric is "meters":
+          # convert to real meter values
+          pixels = convert_normalized_pixels_to_pixels(input_location, dataset_id)
+          output_location = convert_pixels_to_meters(pixels, dataset_id)
+      else:
+          print("Invalid output metric")
+          exit(0)
+
+  else:
+      print("Invalid output metric")
+      exit(0)
+
+  return output_location
+
+
 # Function converts pixels to meters 
 def convert_pixels_to_meters(pixels, dataset_id):
 
@@ -90,22 +128,32 @@ def convert_normalized_meters_to_meters(normalized_meters, dataset_id):
         img_dir = './imgs/eth_hotel/'
         minWidth , maxWidth   = -0.313920000000000 , 14.256000000000000
         minHeight, maxHeight  = 2.846400000000000  , 10.515000000000000
+        #minWidth , maxWidth   = 0 , 40
+        #minHeight, maxHeight  = 0 , 40
     elif(dataset_id == 1):
         img_dir= './imgs/eth_univ/'
         minWidth , maxWidth  = 7.766900000000000, 24.150000000000000
         minHeight, maxHeight = 3.230200000000000, 23.964000000000000
+        #minWidth , maxWidth   = 0 , 40
+        #minHeight, maxHeight  = 0 , 40
     elif(dataset_id == 2):
         img_dir = './imgs/ucy_univ/'
         minWidth , maxWidth  =  0   , 15.343000000000000
         minHeight, maxHeight = 0.071598000000000, 13.866000000000000
+        #minWidth , maxWidth   = 0 , 40
+        #minHeight, maxHeight  = 0 , 40
     elif(dataset_id == 3):
         img_dir = './imgs/ucy_zara01/'
         minWidth , maxWidth  =  0.042093000000000, 15.069000000000000
         minHeight, maxHeight = 1.360400000000000, 13.967000000000000
+        #minWidth , maxWidth   = 0 , 40
+        #minHeight, maxHeight  = 0 , 40
     elif(dataset_id == 4):
         img_dir = './imgs/ucy_zara02/' 
         minWidth , maxWidth  =  -0.062281000000000, 15.175000000000000
         minHeight, maxHeight =  0.071598000000000, 13.651000000000000
+        #minWidth , maxWidth   = 0 , 40
+        #minHeight, maxHeight  = 0 , 40
     else: 
         print("Invalid dataset id")
         sys.exit(0) 

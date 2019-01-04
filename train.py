@@ -27,21 +27,45 @@ from sample import *
     python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance   // for Model_LSTM_1L
     python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --nonlinear_grids // for Model_LSTM_Scene non-linear
     python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --all_grids  // for Model_LSTM_Scene all grids
+    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_8
+    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_16
+    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_32
+    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_64
+
+    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_n8
+    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_n16
+    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_n32
+
+    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_nU16
 
     stage 2: 
+    // LSTM
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --stage2 --nepochs 10
     //all grids 
     python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --all_grids --stage2 --nepochs 10
     // non-linear grids 
     python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --nonlinear_grids --stage2 --nepochs 10
     // non-grids  
     python train.py --model_dataset 0 --train_dataset 0 --predict_distance --stage2 --nepochs 10
+    //
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_8 --stage2 --nepochs 10
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_16 --stage2 --nepochs 10
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_32 --stage2 --nepochs 10
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_64 --stage2 --nepochs 10
+
+    //
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_n8 --stage2 --nepochs 10
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_n16 --stage2 --nepochs 10
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_n32 --stage2 --nepochs 10
+    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_nU16 --stage2 --nepochs 10
 
 '''
 
+
 # Select model 
 model= Model_LSTM_Scene
-model_dir = "Model_LSTM_Scene_non_linear_stage1_meters"
-#previous_model_dir = "Model_LSTM_Scene_I_Sce_Hard"
+model_dir = "Model_LSTM_Scene_nU16_stage2_pixels"
+previous_model_dir = "Model_LSTM_Scene_nU16_stage1_pixels"
 
 # Parsing paramters from config file 
 args.log_dir = './save/{}/v{}/log'.format(model_dir, args.model_dataset)
@@ -85,7 +109,9 @@ if(args.use_scene):
 # Load a previous trained model 
 if(args.stage2):
     previous_save_model_dir = './save/{}/v{}/model'.format(previous_model_dir,args.model_dataset)
-    save_model_file = '{}/best_epoch_model.pt'.format(previous_save_model_dir)
+    save_model_file = '{}/net_epoch_000049.pt'.format(previous_save_model_dir)
+    #save_model_file = '{}/best_epoch_model.pt'.format(previous_save_model_dir)
+
     print("loading best trained model at {}".format(save_model_file))
     state = torch.load(save_model_file)
     net.load_state_dict(state['state_dict'])
@@ -241,7 +267,7 @@ for e in range(start_epoch, args.nepochs):
     end = time.time()
 
     # Print out results
-    logger.write('epoch, {}, loss_epoch, {} , MSE(test), {}'\
+    logger.write('epoch, {}, loss_epoch, {} , MSE(validation), {}'\
         .format( e, loss_epoch , mse), record_loss = True)
     
     logger.write('best_epoch, {}, MSE_best(test), {}'\

@@ -42,7 +42,7 @@ class DataLoader():
 
         else:
             self.test_dataset = [args.test_dataset]
-            self.test_fraction = 1 # 20% batches used for testing  
+            self.test_fraction = 0.5 # 50% batches used for testing  
 
         self.used_data_dirs = [self.dataset_dirs[x] for x in self.used_datasets]
         self.num_datasets = len(self.used_data_dirs)                          # Number of datasets

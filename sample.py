@@ -217,13 +217,9 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
 
     # Final mse, nde , fde 
-    print("mse =", mse)
-    print("mse_batch_cnt", mse_batch_cnts)
-
-    print("fde =", fde)
-    print("fde_batch_cnts", fde_batch_cnts)
     mse = mse/mse_batch_cnts
-    nde = nde/nde_batch_cnts
+    if nde_batch_cnts != 0:
+        nde = nde/nde_batch_cnts
     fde = fde/fde_batch_cnts
 
     return mse, nde , fde

@@ -52,11 +52,6 @@ class Model_LSTM_Scene(nn.Module):
         self.allow_grid_list = []
         self.current_grid_list = 0 
         self.current_dataset = 0
-        # Scene mode
-        self.non_grids = args.non_grids 
-        self.all_grids = args.all_grids
-        self.manual_grids = args.manual_grids
-        self.nonlinear_grids = args.nonlinear_grids
 
         self.Sigmoid = nn.Sigmoid() 
         self.ReLU = nn.ReLU() 

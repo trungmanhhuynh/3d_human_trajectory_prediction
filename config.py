@@ -8,6 +8,7 @@ parser.add_argument('--pre_process',action="store_true", default=False, help='pr
 parser.add_argument('--use_cuda',action="store_true", default=False, help='using CUDA ?')
 parser.add_argument('--load_best_train',action="store_true", default=False, help='load the best trained model')
 parser.add_argument('--input_metric', type=str, default= 'pixels', help='specify input metric(meters or pixels)')
+parser.add_argument('--output_metric', type=str, default= 'meters', help='specify output metric(meters or pixels)')
 
 # training params
 parser.add_argument('--rnn_size', type=int, default= 128, help='size of RNN hidden state')
@@ -38,9 +39,16 @@ parser.add_argument('--social_mixtures', type=int, default= 1, help='number of m
 parser.add_argument('--stage2',action="store_true", default=False, help='specify if it is stage 2 training')
 parser.add_argument('--use_scene', action="store_true", default=False , help='add scene model')
 parser.add_argument('--non_grids', action="store_true", default=False , help='no grids are trained')
-parser.add_argument('--all_grids', action="store_true", default=False , help='all grids are trained')
-parser.add_argument('--manual_grids', action="store_true", default=False , help='manual grids are trained')
 parser.add_argument('--nonlinear_grids', action="store_true", default=False , help='nonlinear grids are trained')
+parser.add_argument('--scene_lstm_8', action="store_true", default=False , help='nonlinear grids are trained')
+parser.add_argument('--scene_lstm_16', action="store_true", default=False , help='nonlinear grids are trained')
+parser.add_argument('--scene_lstm_32', action="store_true", default=False , help='nonlinear grids are trained')
+parser.add_argument('--scene_lstm_64', action="store_true", default=False , help='nonlinear grids are trained')
+parser.add_argument('--scene_lstm_n8', action="store_true", default=False , help='nonlinear grids are trained')
+parser.add_argument('--scene_lstm_n16', action="store_true", default=False , help='nonlinear grids are trained')
+parser.add_argument('--scene_lstm_n32', action="store_true", default=False , help='nonlinear grids are trained')
+parser.add_argument('--scene_lstm_nU16', action="store_true", default=False , help='nonlinear grids are trained')
+
 
 parser.add_argument('--scene_mixtures', type=int, default= 1, help='number of mixtures output from Scene LSTM')
 parser.add_argument('--scene_grid_num', type=int, default= 8, help='number of grids of scene')

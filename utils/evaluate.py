@@ -20,7 +20,7 @@ def calculate_mean_square_error(batch, results, predicted_pids, args):
 	# Only care about peds that has obverve length = args.obsever_length 
 	for pedId in predicted_pids:
 		isSelected = True 
-		for t in range(0,args.observe_length ):
+		for t in range(0,args.observe_length):
 			presentIdx = np.where( batch["ped_ids_frame"][t] == pedId)[0]
 			if(presentIdx.size == 0): # if predicted peds does not have enough
 				isSelected = False 	  # T_obs + T_predict frames
@@ -53,24 +53,12 @@ def calculate_mean_square_error(batch, results, predicted_pids, args):
 			predict_loc = results[t][idxInPredict]
 			true_loc = batch["batch_data_absolute"][t][idxInBatch]
 			
-			# convert to meters
-			if(args.input_metric is "pixels"):
-				predict_pixels = convert_normalized_pixels_to_pixels(predict_loc, batch["dataset_id"])
-				predict_meters = convert_pixels_to_meters(predict_pixels, batch["dataset_id"])
-
-				true_pixels = convert_normalized_pixels_to_pixels(true_loc, batch["dataset_id"])
-				true_meters = convert_pixels_to_meters(true_pixels, batch["dataset_id"])
-
-			elif(args.input_metric is "meters"):
-				predict_meters = convert_normalized_meters_to_meters(predict_loc, batch["dataset_id"])
-				true_meters = convert_normalized_meters_to_meters(true_loc, batch["dataset_id"])
-
-			else:
-				print("error: defind input metric")
-				exit(0)
+			# convert metrics
+			predict_loc = convert_input2output_metric(predict_loc, batch["dataset_id"], args.input_metric, args.output_metric)
+			true_loc = convert_input2output_metric(true_loc, batch["dataset_id"], args.input_metric, args.output_metric)
 
 			# Calculate mse in each frame of a ped
-			msePed = np.sqrt((predict_meters[:,0]- true_meters[:,0])**2 +  (predict_meters[:,1]- true_meters[:,1])**2)	
+			msePed = np.sqrt((predict_loc[:,0]- true_loc[:,0])**2 +  (predict_loc[:,1]- true_loc[:,1])**2)	
 
 			# Calculate mse of all peds in a frame 
 			mseTotal = mseTotal + msePed  
@@ -159,25 +147,12 @@ def calculate_mean_square_error_nonlinear(batch, results, predicted_pids, args):
 			predict_loc = results[t][idxInPredict]
 			true_loc = batch["batch_data_absolute"][t][idxInBatch]  
 			
-			# convert to meters
-			if(args.input_metric is "pixels"):
-				predict_pixels = convert_normalized_pixels_to_pixels(predict_loc, batch["dataset_id"])
-				predict_meters = convert_pixels_to_meters(predict_pixels, batch["dataset_id"])
-
-				true_pixels = convert_normalized_pixels_to_pixels(true_loc, batch["dataset_id"])
-				true_meters = convert_pixels_to_meters(true_pixels, batch["dataset_id"])
-
-			elif(args.input_metric is "meters"):
-				predict_meters = convert_normalized_meters_to_meters(predict_loc, batch["dataset_id"])
-				true_meters = convert_normalized_meters_to_meters(true_loc, batch["dataset_id"])
-
-			else:
-				print("error: defind input metric")
-				exit(0)
+			# convert metrics
+			predict_loc = convert_input2output_metric(predict_loc, batch["dataset_id"], args.input_metric, args.output_metric)
+			true_loc = convert_input2output_metric(true_loc, batch["dataset_id"], args.input_metric, args.output_metric)
 
 			# Calculate mse in each frame of a ped
-			msePed = np.sqrt((predict_meters[:,0]- true_meters[:,0])**2 +  (predict_meters[:,1]- true_meters[:,1])**2)	
-
+			msePed = np.sqrt((predict_loc[:,0]- true_loc[:,0])**2 +  (predict_loc[:,1]- true_loc[:,1])**2)	
 			validPoints = validPoints + 1
 			# Calculate mse of all peds in a frame 
 			mseTotal = mseTotal + msePed  
@@ -243,25 +218,13 @@ def calculate_final_displacement_error(batch, results, predicted_pids, args):
 		# Get predicted location and true location
 		predict_loc = results[lastFrame][idxInPredict]
 		true_loc = batch["batch_data_absolute"][lastFrame][idxInBatch]  
-		
-		# convert to meters
-		if(args.input_metric is "pixels"):
-			predict_pixels = convert_normalized_pixels_to_pixels(predict_loc, batch["dataset_id"])
-			predict_meters = convert_pixels_to_meters(predict_pixels, batch["dataset_id"])
-
-			true_pixels = convert_normalized_pixels_to_pixels(true_loc, batch["dataset_id"])
-			true_meters = convert_pixels_to_meters(true_pixels, batch["dataset_id"])
-
-		elif(args.input_metric is "meters"):
-			predict_meters = convert_normalized_meters_to_meters(predict_loc, batch["dataset_id"])
-			true_meters = convert_normalized_meters_to_meters(true_loc, batch["dataset_id"])
-
-		else:
-			print("error: defind input metric")
-			exit(0)
+			
+		# convert metrics
+		predict_loc = convert_input2output_metric(predict_loc, batch["dataset_id"], args.input_metric, args.output_metric)
+		true_loc = convert_input2output_metric(true_loc, batch["dataset_id"], args.input_metric, args.output_metric)
 
 		# Calculate mse in each frame of a ped
-		msePed = np.sqrt((predict_meters[:,0]- true_meters[:,0])**2 +  (predict_meters[:,1]- true_meters[:,1])**2)	
+		msePed = np.sqrt((predict_loc[:,0]- true_loc[:,0])**2 +  (predict_loc[:,1]- true_loc[:,1])**2)	
 
 		# Calculate mse of all peds in a frame 
 		mseTotal = mseFrame + msePed

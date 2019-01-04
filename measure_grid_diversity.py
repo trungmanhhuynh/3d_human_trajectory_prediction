@@ -128,13 +128,17 @@ def measure_grid_diversity():
     # sort by degree
     sorted_list_by_degree = list_common_degree.copy()
     sorted_list_by_degree.sort(key=operator.itemgetter('degree'))
-
+    print(sorted_list_by_degree)
     # Get degree list for plotting
     degree_list = [list_common_degree[gi]["degree"] for gi in range(len(list_common_degree))]
 
     sorted_degree_list = [sorted_list_by_degree[gi]["degree"] for gi in range(len(sorted_list_by_degree))]
+    sorted_grid_cells = [sorted_list_by_degree[gi]["grid_cell_id"] for gi in range(len(sorted_list_by_degree))]
 
-    plot_common_movement_degree(sorted_degree_list)
+    #plot_common_movement_degree(degree_list)
+
+    print("most common movments grid-cell index: ")
+    print(sorted_grid_cells)
     input("here")
 
 
@@ -142,7 +146,10 @@ def plot_common_movement_degree(degree_list):
 
     print(degree_list)
     plt.plot(degree_list)
-    plt.ylabel('some numbers')
+    plt.xlabel('grid-cell index')
+    plt.ylabel('common movement score')
+    plt.title('UCY_Zara02')
+
     plt.show()
 
 def plot_results():
@@ -296,5 +303,5 @@ if __name__ == '__main__':
     #test_get_sub_grid_cell_index()
     #test_get_coordinate_of_grid_cell()
     #test_get_grid_cell_index()
-    #measure_grid_diversity()
-    plot_results()
+    measure_grid_diversity()
+    #plot_results()
