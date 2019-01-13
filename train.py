@@ -62,37 +62,26 @@ from sample import *
 '''
 
 
-# Select model 
-model= Model_LSTM_Scene
-model_dir = "Model_LSTM_Scene_nU16_stage2_pixels"
-previous_model_dir = "Model_LSTM_Scene_nU16_stage1_pixels"
-
-# Parsing paramters from config file 
-args.log_dir = './save/{}/v{}/log'.format(model_dir, args.model_dataset)
-args.save_model_dir =  './save/{}/v{}/model'.format(model_dir,args.model_dataset)
-args.num_train_datasets = len(args.train_dataset)
-args.num_total_datasets = 5
-
-# Parameters
-best_MSE_validation = 100000; 
-best_epoch = 10000000
-
-# Define logger 
-logger = Logger(args, train = True) # make logging utility
-logger.write("{}\n".format(args))
-
-# Load Data object
-print("loading data...")
-data_loader = DataLoader(args, logger, train = True)
-
-#--------------------------------------------------------------------------------------------$
-#                             TRAINING SECTION
-#--------------------------------------------------------------------------------------------$
 #Define model 
+model= Model_LSTM_Scene
+
 net = model(args, train = True)
 if(args.use_cuda): net = net.cuda() 
 optimizer = optim.RMSprop(net.parameters(), lr = args.learning_rate)
 print(net)
+
+# Define logger 
+logger = Logger(args, train = True) # make logging utility
+logger.write("{}\n".format(args))
+# Load Data object
+print("loading data...")
+data_loader = DataLoader(args, logger, train = True)
+
+input("Are you sure to train this network ? Enter")
+
+#--------------------------------------------------------------------------------------------$
+#                             TRAINING SECTION
+#--------------------------------------------------------------------------------------------$
 
 # Initialize scene states for all dataset.
 if(args.use_scene):
@@ -126,7 +115,10 @@ if(args.stage2):
 else: 
     start_epoch = 0
 
-input("Are you sure to train this network ? Enter")
+# Init
+best_MSE_validation = 100000; 
+best_epoch = 10000000
+
 for e in range(start_epoch, args.nepochs):
 
     # Intialize variables

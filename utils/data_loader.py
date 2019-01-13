@@ -15,22 +15,21 @@ class DataLoader():
 
     def __init__(self, args, logger , train= False):
 
-        # List of data directories where raw data resides
-        self.dataset_dirs = ['./datasets/trajectory_prediction/data/eth_hotel', 
-                             './datasets/trajectory_prediction/data/eth_univ' ,
-                             './datasets/trajectory_prediction/data/ucy_univ' , 
-                             './datasets/trajectory_prediction/data/ucy_zara01',
-                             './datasets/trajectory_prediction/data/ucy_zara02']
-             
+        self.data_dir = './processed_data'                   # Where the pre-processed pickle file resides             
+        self.data_dir = os.path.join(self.data_dir, args.dataset_size)      
 
+        # List of data directories where raw data resides
+        video_list = ['eth_hotel','eth_univ','ucy_univ', 'ucy_zara01', 'ucy_zara02'] 
+        self.dataset_dirs = [os.path.join(self.data_dir, video) for video in video_list]
+             
         self.logger = logger           
         self.used_datasets = [0, 1, 2, 3, 4]
-        self.input_metric = args.input_metric
+        self.used_data_dirs = [self.dataset_dirs[x] for x in self.used_datasets]
+        self.num_datasets = len(self.used_data_dirs) 
 
         if(train):
             # all the train_dataset will be used to train the model
             # which then will be used for testing the model_dataset
-            self.model_dataset = [args.model_dataset]
             self.train_dataset = args.train_dataset
             self.valid_dataset = args.train_dataset
             self.val_fraction =  0.2 # 20% batches used for validation  
@@ -43,11 +42,8 @@ class DataLoader():
         else:
             self.test_dataset = [args.test_dataset]
             self.test_fraction = 0.5 # 50% batches used for testing  
-
-        self.used_data_dirs = [self.dataset_dirs[x] for x in self.used_datasets]
-        self.num_datasets = len(self.used_data_dirs)                          # Number of datasets
-        self.data_dir = './datasets/trajectory_prediction'                                       # Where the pre-processed pickle file resides             
         
+        self.input_metric = args.input_metric
         if(self.input_metric is "meters"):
             data_file = os.path.join(self.data_dir, "trajectories_meters.cpkl")          # Where the pre-processed pickle file resides
         elif(self.input_metric is "pixels"):
@@ -67,7 +63,6 @@ class DataLoader():
         self.num_train_batches = 0 ; 
         self.num_validation_batches = 0 ; 
         self.num_test_batches = 0 ; 
-
 
         # If the file doesn't exist
         if (not(os.path.exists(data_file)) or self.pre_process):

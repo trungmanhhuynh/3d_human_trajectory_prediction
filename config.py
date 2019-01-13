@@ -1,4 +1,5 @@
 import argparse
+import os
 
 
 parser = argparse.ArgumentParser()
@@ -9,6 +10,8 @@ parser.add_argument('--use_cuda',action="store_true", default=False, help='using
 parser.add_argument('--load_best_train',action="store_true", default=False, help='load the best trained model')
 parser.add_argument('--input_metric', type=str, default= 'pixels', help='specify input metric(meters or pixels)')
 parser.add_argument('--output_metric', type=str, default= 'meters', help='specify output metric(meters or pixels)')
+
+
 
 # training params
 parser.add_argument('--rnn_size', type=int, default= 128, help='size of RNN hidden state')
@@ -65,8 +68,25 @@ parser.add_argument('--meters', action="store_true", default=False, help='error 
 
 
 #book-keeping
-parser.add_argument('--data_dir', type=str, default='./data', help='location, relative to execution, of data')
+parser.add_argument('--dataset_size', type=str, default= 'mini', help='mini/medium/full')
+parser.add_argument('--model_folder_stage1', type=str, default='Model_LSTM_Scene_16_stage1_pixels', help='save dir (model,log...)')
+parser.add_argument('--model_folder_stage2', type=str, default='Model_LSTM_Scene_non_linear_stage2_pixels', help='save dir (model,log...)')
+parser.add_argument('--save_root', type=str, default='./save', help='save root')
 parser.add_argument('--save_freq', type=int, default= 1, help='')
 parser.add_argument('--info_freq', type=int, default=10, help='frequency to print out')
 
 args = parser.parse_args()
+
+if(args.stage2):
+    args.log_dir = os.path.join(args.save_root , args.dataset_size, args.model_folder_stage2, str(args.model_dataset), 'log')
+    args.save_model_dir =  os.path.join(args.save_root , args.dataset_size, args.model_folder_stage2, str(args.model_dataset), 'model')
+else:
+    args.log_dir = os.path.join(args.save_root , args.dataset_size, args.model_folder_stage1, str(args.model_dataset), 'log')
+    args.save_model_dir =  os.path.join(args.save_root , args.dataset_size, args.model_folder_stage1, str(args.model_dataset), 'model')
+
+
+args.num_train_datasets = len(args.train_dataset)
+args.num_total_datasets = 5
+
+#previous_model_dir = "Model_LSTM_Scene_nU16_stage1_pixels"
+
