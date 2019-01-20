@@ -273,7 +273,7 @@ class DataLoader():
         self.logger.write('Total num_validation_batches : {}'.format(sum(self.num_validation_batches_list)))
         self.logger.write('Total num_test_batches : {}'.format(sum(self.num_test_batches_list)))
 
-    def next_batch(self, randomUpdate=True):
+    def next_batch(self, randomUpdate=True, jump = 1):
         '''
         Function to get the next batch of points
         '''
@@ -293,7 +293,7 @@ class DataLoader():
             self.train_batch_pointer = random.randint(0, self.num_train_batches_list[dataset_idx] -1)         
         else:
             
-            self.tick_batch_pointer(train=True)
+            self.tick_batch_pointer(train=True, jump = jump)
 
         return batch_data
 
@@ -315,7 +315,7 @@ class DataLoader():
    
         return batch_data
 
-    def next_test_batch(self, randomUpdate=False):
+    def next_test_batch(self, randomUpdate=False, jump = 1):
         '''
         Function to get the next batch of points
         '''
@@ -327,16 +327,16 @@ class DataLoader():
         # Number of unique peds in this sequence of frames
         batch_data = self.test_batch[dataset_idx][batch_idx]
 
-        self.tick_batch_pointer(test=True)
+        self.tick_batch_pointer(test=True, jump = jump)
    
         return batch_data
 
-    def tick_batch_pointer(self, train = False, valid = False , test = False):
+    def tick_batch_pointer(self, train = False, jump = 1, valid = False , test = False):
         '''
         Advance the dataset pointer
         '''
         if train:
-            self.train_batch_pointer += 1                   # Increment batch pointer
+            self.train_batch_pointer += jump                  # Increment batch pointer
             dataset_idx =self.train_dataset[self.train_dataset_pointer]
             if self.train_batch_pointer  >= self.num_train_batches_list[dataset_idx] :
                 # Go to the next dataset
@@ -347,7 +347,7 @@ class DataLoader():
                 if self.train_dataset_pointer >= len(self.train_dataset):
                     self.reset_batch_pointer(train = True)
         if valid:       
-            self.valid_batch_pointer += 1                   # Increment batch pointer
+            self.valid_batch_pointer += jump                  # Increment batch pointer
             dataset_idx =self.train_dataset[self.valid_dataset_pointer]
             if self.valid_batch_pointer  >= self.num_validation_batches_list[dataset_idx] :
                 # Go to the next dataset
@@ -359,7 +359,7 @@ class DataLoader():
                     self.reset_batch_pointer(valid = True)
 
         if test:       
-            self.test_batch_pointer += 1              # Increment batch pointer
+            self.test_batch_pointer += jump              # Increment batch pointer
             dataset_idx =self.test_dataset[self.test_dataset_pointer]
             if self.test_batch_pointer  >= self.num_test_batches_list[dataset_idx] :
                 # Go to the next dataset

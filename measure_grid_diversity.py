@@ -29,25 +29,22 @@ def measure_grid_diversity():
     number_sub_grids = 8 ;          # 8x8 number inner grid_ceslls in each grid 
 
     # Load data 
-    model_dir = "Model_LSTM_1L_stage1_meters"
-    args.log_dir = './save/{}/v{}/log'.format(model_dir, args.test_dataset)
-    args.save_model_dir =  './save/{}/v{}/model'.format(model_dir,args.test_dataset)
     logger = Logger(args, train = False) # make logging utility
     data_loader = DataLoader(args, logger, train = False)
 
     # a grid-cell is further divided into sub-grids, 
     # each sub-grid has 8 directions to nearyby grids. 
-
     list_grid_cells = [[] for i in range(number_grid_cells**2)]
   
     for i in range(0, data_loader.num_test_batches):
 
-        batch  = data_loader.next_test_batch(randomUpdate=False)
+        batch  = data_loader.next_test_batch(randomUpdate=False, jump = 20)
         numberFrames = len(batch["frame_list"])
 
         #print("frame_list =", batch["frame_list"])
         for ped in batch["ped_ids"]: 
             for t in range(0,numberFrames-1):
+
 
                 # find location of this ped in frame t and t+1
                 idxInBatch_t = np.where(batch["ped_ids_frame"][t] == ped)[0]
@@ -125,10 +122,12 @@ def measure_grid_diversity():
 
         list_common_degree.append(common_info)
 
+    for i in list_common_degree:
+        print(i) 
+
     # sort by degree
     sorted_list_by_degree = list_common_degree.copy()
     sorted_list_by_degree.sort(key=operator.itemgetter('degree'))
-    print(sorted_list_by_degree)
     # Get degree list for plotting
     degree_list = [list_common_degree[gi]["degree"] for gi in range(len(list_common_degree))]
 
@@ -194,19 +193,8 @@ def get_grid_cell_index(inputLocation, number_grid_cells, range = [-1,1,-1,1]):
     cell_y = int(np.floor(((y - height_min)/boundary_size_y) * number_grid_cells))
 
     # Peds locations must be in range of [-1,1], so the cell used must be in range [0,scene_grid_num-1]
-    if(cell_x < 0):
-        cell_x = 0
-    if(cell_x >= number_grid_cells):
-        cell_x = number_grid_cells - 1
-    if(cell_y < 0):
-        cell_y = 0 
-    if(cell_y >= number_grid_cells):
-        cell_y = number_grid_cells - 1
-
-    
-    grid_cell_indx = cell_x + cell_y*number_grid_cells
-
-    return grid_cell_indx
+    if(cell_x >= 0 and cell_x < number_grid_cells and cell_y >= 0 and cell_y < number_grid_cells ):
+        return cell_x + cell_y*number_grid_cells
 
 
 def get_sub_grid_cell_index(inputLocation, number_grid_cells, number_sub_grids, range =[-1,1,-1,1]):

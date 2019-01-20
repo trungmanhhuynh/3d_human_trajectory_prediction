@@ -13,8 +13,7 @@ from matplotlib import pyplot as plt
 from bs4 import BeautifulSoup as Soup
 import numpy as np
 import glob
-from grid import *
-from measure_grid_diversity import get_sub_grid_cell_index
+from utils.scene_grids import get_sub_grid_cell_index
 
 def logsumexp(x):
     x_max, _ = x.max(dim=1,keepdim=True)
@@ -29,29 +28,28 @@ class Model_LSTM_Scene(nn.Module):
         #-----General Parameters
         self.use_cuda = args.use_cuda
         self.nmixtures = args.nmixtures                                    # number of mixtures in final output
-        self.rnn_size= args.rnn_size       # rnn_size of ALL LSTMs
+        self.rnn_size= args.rnn_size                                       # rnn_size of ALL LSTMs
+        self.embedding_size = args.embedding_size                          # size of embedding layers for ALL 
         self.predict_length = args.predict_length  
         self.observe_length = args.observe_length
         self.tsteps = args.observe_length + args.predict_length            # number of steps 
         self.num_layers = args.num_layers                                  # number of layers for ALL LSTMs
-        self.embedding_size = args.embedding_size                          # size of embedding layers for ALL 
         self.output_size = self.nmixtures*6                                # final output size 
         self.train = train 
-        self.predict_distance = args.predict_distance                       # set train/test flag
+        self.predict_distance = args.predict_distance                      # set train/test flag
+
+        #-----Scene Parameters    
+        self.num_grid_cells = args.num_grid_cells                          # number of grid size for scene
+        self.num_sub_grids = args.num_sub_grids
+        self.scene_mixtures = args.scene_mixtures 
+        self.scene_output_size = self.scene_mixtures*6                      # number of grid size for scene
+
 
         if(train): 
             self.dropout = args.dropout 
         else: 
             self.dropout = 0       # set dropout value
-           
-        #-----Scene Parameters    
-        self.scene_grid_num = args.scene_grid_num                         # number of grid size for scene
-        self.inner_grid_num = args.inner_grid_num
-        self.scene_mixtures = args.scene_mixtures 
-        self.scene_output_size = self.scene_mixtures*6                      # number of grid size for scene
-        self.allow_grid_list = []
-        self.current_grid_list = 0 
-        self.current_dataset = 0
+    
 
         self.Sigmoid = nn.Sigmoid() 
         self.ReLU = nn.ReLU() 
@@ -59,7 +57,7 @@ class Model_LSTM_Scene(nn.Module):
 
         #---- Scene Models
         # convert absolute location to one-hot locations 
-        self.LSTM_Scene = nn.LSTM(self.inner_grid_num**2 + self.rnn_size, self.rnn_size, num_layers=1, dropout=self.dropout)
+        self.LSTM_Scene = nn.LSTM(self.num_sub_grids**2 + self.rnn_size, self.rnn_size, num_layers=1, dropout=self.dropout)
 
         #--- Indivudal model
         self.Embedding_Input = nn.Linear(2,self.embedding_size)
@@ -79,8 +77,11 @@ class Model_LSTM_Scene(nn.Module):
     def set_scene_hidden_states(self, scene_grid_h0, scene_grid_c0):
 
         # In case we use trained hidden states
-        self.scene_grid_h0 = scene_grid_h0.clone()
-        self.scene_grid_c0 = scene_grid_c0.clone()
+        self.scene_grid_h0 = Variable(scene_grid_h0.data.clone())
+        self.scene_grid_c0 = Variable(scene_grid_c0.data.clone())
+
+    def get_scene_hidden_states(self):
+        return self.scene_grid_h0.data.clone(), self.scene_grid_c0.data.clone()
 
     # Forward bacth data at time t
     def forward(self, xoff, xabs):
@@ -94,11 +95,6 @@ class Model_LSTM_Scene(nn.Module):
 
         lstm_scene_output, (self.scene_grid_h0, self.scene_grid_c0) = self.LSTM_Scene(input_scene, (self.scene_grid_h0, self.scene_grid_c0))
         lstm_scene_output = self.ReLU(lstm_scene_output)
-
-        # hard-filter scene grids
-        for idx, grid_id in enumerate(self.current_grid_list.data):
-            if(grid_id not in self.allow_grid_list[self.current_dataset]):
-                lstm_scene_output[:,idx,:] = Variable(torch.zeros(self.num_layers, 1, self.rnn_size)).clone()
 
         #----- Individual Movememts
         if(self.predict_distance):
@@ -129,7 +125,6 @@ class Model_LSTM_Scene(nn.Module):
         # split output into pieces. Each ~ [1*batch_size, nmixtures]
         # and store them to final results
         mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits = final_output.split(self.nmixtures,dim=1)   
-
 
         return mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits
 
@@ -215,7 +210,7 @@ class Model_LSTM_Scene(nn.Module):
         # x_t ~ [1,batch_size, 2]
 
         # Initialize one-hot location
-        one_hot = Variable(torch.zeros(1, batch_size, self.inner_grid_num**2))
+        one_hot = Variable(torch.zeros(1, batch_size, self.num_sub_grids**2))
         if(self.use_cuda):
             one_hot = one_hot.cuda()
         
@@ -227,7 +222,7 @@ class Model_LSTM_Scene(nn.Module):
             ped_location[0], ped_location[1] = x_t[pedindex, 0].cpu().numpy(), x_t[pedindex, 1].cpu().numpy()
 
             # Get sub-grid index
-            sub_grid_indx =  get_sub_grid_cell_index(ped_location, self.scene_grid_num, self.inner_grid_num, range =[-1,1,-1,1])
+            sub_grid_indx =  get_sub_grid_cell_index(ped_location, self.num_grid_cells, self.num_sub_grids, range =[-1,1,-1,1])
 
             one_hot[:,pedindex,sub_grid_indx] = 1 
 

@@ -21,7 +21,7 @@ from utils.evaluate import *
 from utils.data_loader import *
 from utils.visualize import *
 from config import *
-from grid import get_allow_grids
+from utils.scene_grids import get_nonlinear_grids, get_common_grids, get_scene_states, update_scene_states
 from sample import *
 
 
@@ -29,8 +29,7 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
     #Define model with train = False to set drop out = 0 
     net = model(args, train  = False)
-    if(args.use_cuda):
-        net = net.cuda() 
+    if(args.use_cuda): net = net.cuda() 
     optimizer = optim.RMSprop(net.parameters(), lr = args.learning_rate)
 
     # Load the trained model from save_model_file
@@ -38,20 +37,12 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
     state = torch.load(save_model_file)
     net.load_state_dict(state['state_dict'])
     optimizer.load_state_dict(state['optimizer'])
-   
-    # Initialize scene states for all dataset.
-    if(args.use_scene):
-        scene_h0_list = state['scene_h0_list'].clone()
-        scene_c0_list = state['scene_c0_list'].clone()    
-        allow_grid_list = get_allow_grids(data_loader,args)
-        net.allow_grid_list = allow_grid_list
+    scene_states = state['scene_states']
+    scene_info = state['scene_info']
 
     # set number of batches for different modes: test/validation
-    if(test):
-        num_batches = data_loader.num_test_batches
-    else: # validation 
-        num_batches = data_loader.num_validation_batches
-
+    if(test):num_batches = data_loader.num_test_batches
+    else: num_batches = data_loader.num_validation_batches
 
     # Intialize error metrics
     mse = 0; nde = 0 ; fde = 0 
@@ -60,17 +51,15 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
     for i in tqdm.tqdm(range(0, num_batches)):
 
         # Load batch training data 
-        if(test):
-            batch  = data_loader.next_test_batch(randomUpdate=False)
-        else: 
-            batch  = data_loader.next_valid_batch(randomUpdate=False)
+        if(test): batch  = data_loader.next_test_batch(randomUpdate=False)
+        else: batch  = data_loader.next_valid_batch(randomUpdate=False)
+        nPeds = batch["ped_ids"].size
+        dataset_id = batch["dataset_id"]
 
         # Set hidden states for each target in this batch
-        nPeds = batch["ped_ids"].size
         h0 = Variable(torch.zeros(args.num_layers, nPeds, args.rnn_size))
         c0 = Variable(torch.zeros(args.num_layers, nPeds, args.rnn_size))
-        if(args.use_cuda): 
-            h0,c0 = h0.cuda(), c0.cuda()      
+        if(args.use_cuda):  h0,c0 = h0.cuda(), c0.cuda()      
           
         # Clear things before forwarding a batch
         optimizer.zero_grad()
@@ -105,13 +94,8 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
             # Get the hidden states of scene in current frame
             #scene_grid_h0, scene_grid_c0 ~ [num_layers,nPeds,rnn_size]
-            if(args.use_scene):
-                scene_grid_h0, scene_grid_c0, list_of_grid_id = get_scene_states(xabs, batch["dataset_id"], \
-                                         args.scene_grid_num, scene_h0_list, scene_c0_list, args)
-                net.set_scene_hidden_states(scene_grid_h0, scene_grid_c0)                # Set hidden states for this model
-                net.current_grid_list = list_of_grid_id 
-                net.current_dataset = batch["dataset_id"] 
-
+            scene_grid_h0, scene_grid_c0 = get_scene_states(xabs, dataset_id, scene_states,  scene_info, args)
+            net.set_scene_hidden_states(scene_grid_h0, scene_grid_c0)                # Set hidden states for this model
 
             # set others model parameters  
             net.batch_size = batch["ped_ids_frame"][t].size
@@ -122,22 +106,14 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
             h0[:,indices,:] = net.i_h0.clone()
             c0[:,indices,:] = net.i_c0.clone()
 
-            # TO-DO: Update scene's states
-            if(args.use_scene):
-                grid_id_unique = np.unique(list_of_grid_id.data.cpu().numpy())
-                for grid_id in grid_id_unique:
-                    if(grid_id in allow_grid_list[batch["dataset_id"]]):
-                        for b in range(net.batch_size):
-                            if(list_of_grid_id[b].item() == grid_id and random.randint(0, 1) == 1):
-                                scene_c0_list[batch["dataset_id"],grid_id] =  net.scene_grid_c0[:,b,:].data.clone() 
+            """
+            # Update scene states
+            scene_grid_h0, scene_grid_c0 = net.get_scene_hidden_states()
+            scene_states = update_scene_states(xabs, dataset_id, scene_states, scene_info, scene_grid_h0, scene_grid_c0, args)
+            """
+
             # save the results.
             result_pts.append(batch["batch_data_absolute"][t])
-            #result_ids.append(batch["ped_ids_frame"][t])
-
-
-        #print("result_pts=", result_pts)
-        #print("result_ids=", result_ids)
-        #input("here")
 
         #-----------------------------------------------------------------
         # Generate predicted trajectories
@@ -145,6 +121,7 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
         # Predict future trajectory, each target is present in the last observed frame 
         # is used to predict the next #args.predict_length frames
         predicted_pids = batch["ped_ids_frame"][args.observe_length-1]
+        net.batch_size = len(predicted_pids)
 
         # Get input data of time  args.observe_length-1
         xoff = batch["batch_data_offset"][args.observe_length-1] 
@@ -169,16 +146,8 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
             # Get the hidden states of scene in current frame
             #scene_grid_h0, scene_grid_c0 ~ [num_layers,nPeds,rnn_size]
-            if(args.use_scene):
-                scene_grid_h0, scene_grid_c0, list_of_grid_id = get_scene_states(xabs, batch["dataset_id"], \
-                                         args.scene_grid_num, scene_h0_list, scene_c0_list, args)
-                net.set_scene_hidden_states(scene_grid_h0, scene_grid_c0)                # Set hidden states for this model
-                net.current_grid_list = list_of_grid_id 
-                net.current_dataset = batch["dataset_id"] 
-
-
-            # set others model parameters  
-            net.batch_size = len(predicted_pids)
+            scene_grid_h0, scene_grid_c0 = get_scene_states(xabs, dataset_id, scene_states,  scene_info, args)
+            net.set_scene_hidden_states(scene_grid_h0, scene_grid_c0)                # Set hidden states for this model
             
             # Forward pass 
             mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits = net.forward(xoff, xabs)
@@ -210,11 +179,8 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
             fde = fde + batch_fde
             fde_batch_cnts = fde_batch_cnts + numPeds
      
-
         # Save trajectories 
         #plot_trajectory_pts_on_images(batch, i, result_pts, predicted_pids, args)
-
-
 
     # Final mse, nde , fde 
     mse = mse/mse_batch_cnts

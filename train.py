@@ -19,47 +19,9 @@ from models.Model_LSTM_Scene import *
 from utils.evaluate import *
 from utils.data_loader import *
 from utils.visualize import *
+from utils.scene_grids import get_nonlinear_grids, get_common_grids, get_scene_states, update_scene_states
 from config import *
-from grid import get_allow_grids
-from sample import *
-
-''' usage: 
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance   // for Model_LSTM_1L
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --nonlinear_grids // for Model_LSTM_Scene non-linear
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --all_grids  // for Model_LSTM_Scene all grids
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_8
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_16
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_32
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_64
-
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_n8
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_n16
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_n32
-
-    python train.py --model_dataset 0 --train_dataset 1 2 3 4 --predict_distance --use_scene --scene_lstm_nU16
-
-    stage 2: 
-    // LSTM
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --stage2 --nepochs 10
-    //all grids 
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --all_grids --stage2 --nepochs 10
-    // non-linear grids 
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --nonlinear_grids --stage2 --nepochs 10
-    // non-grids  
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --stage2 --nepochs 10
-    //
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_8 --stage2 --nepochs 10
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_16 --stage2 --nepochs 10
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_32 --stage2 --nepochs 10
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_64 --stage2 --nepochs 10
-
-    //
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_n8 --stage2 --nepochs 10
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_n16 --stage2 --nepochs 10
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_n32 --stage2 --nepochs 10
-    python train.py --model_dataset 0 --train_dataset 0 --predict_distance --use_scene --scene_lstm_nU16 --stage2 --nepochs 10
-
-'''
+from sample import sample
 
 
 #Define model 
@@ -84,40 +46,56 @@ input("Are you sure to train this network ? Enter")
 #--------------------------------------------------------------------------------------------$
 
 # Initialize scene states for all dataset.
-if(args.use_scene):
-    scene_h0_list = Variable(torch.zeros(args.num_total_datasets,args.scene_grid_num*args.scene_grid_num,args.num_layers, 1, args.rnn_size))
-    scene_c0_list = Variable(torch.zeros(args.num_total_datasets,args.scene_grid_num*args.scene_grid_num,args.num_layers, 1, args.rnn_size))
-    if(args.use_cuda):
-        scene_h0_list, scene_c0_list = scene_h0_list.cuda(), scene_c0_list.cuda()
-            
-    # Define which grids in each dataset are trained
-    # allow_grid_list ~ list (size 5) of grid ids used to train
-    allow_grid_list = get_allow_grids(data_loader,args)
-    net.allow_grid_list = allow_grid_list
+# Intilize the grid-cell memories of 2 types: non-linear and common movments.
+scene_states = {
+    "nonlinear_h0_list": torch.zeros(args.num_datasets,args.num_grid_cells**2,args.num_layers, 1, args.rnn_size),
+    "nonlinear_c0_list": torch.zeros(args.num_datasets,args.num_grid_cells**2,args.num_layers, 1, args.rnn_size),
+    "common_h0_list" : torch.zeros(args.num_datasets,args.num_grid_cells**2,args.num_layers, 1, args.rnn_size),
+    "common_c0_list": torch.zeros(args.num_datasets,args.num_grid_cells**2,args.num_layers, 1, args.rnn_size)
+}
+if(args.use_cuda): 
+    scene_states["nonlinear_h0_list"], = scene_states["nonlinear_h0_list"].cuda() 
+    scene_states["nonlinear_c0_list"]  = scene_states["nonlinear_c0_list"].cuda()
+    scene_states["common_h0_list"]     = scene_states["common_h0_list"].cuda()
+    scene_states["common_c0_list"]     = scene_states["common_c0_list"].cuda()
 
-# Load a previous trained model 
+# Define scene information
+scene_info ={ 
+    "nonlinear_grid_list": [] ,
+    "nonlinear_sub_grids_maps" : [], 
+    "common_grid_list" : [], 
+    "common_sub_grids_maps" : []
+}
+
+if(args.nonlinear_grids):
+    logger.write("finding nonlinear grid_cells...")
+    scene_info["nonlinear_grid_list"], scene_info["nonlinear_sub_grids_maps"] = get_nonlinear_grids(data_loader, args)
+    logger.write("{}\n".format(scene_info["nonlinear_grid_list"]))
+
+if(args.num_common_grids > 0):
+    logger.write("finding common grid_cells...")
+    scene_info["common_grid_list"], scene_info["common_sub_grids_maps"] = get_common_grids(data_loader, args)
+    logger.write("{}\n".format(scene_info["common_grid_list"]))
+
+
+# Load best trained stage1 model for training stage 2
 if(args.stage2):
-    previous_save_model_dir = './save/{}/v{}/model'.format(previous_model_dir,args.model_dataset)
-    save_model_file = '{}/net_epoch_000049.pt'.format(previous_save_model_dir)
-    #save_model_file = '{}/best_epoch_model.pt'.format(previous_save_model_dir)
-
+    save_model_file = os.path.join(args.save_prev_model_dir, "best_epoch_model.pt")
     print("loading best trained model at {}".format(save_model_file))
     state = torch.load(save_model_file)
     net.load_state_dict(state['state_dict'])
     optimizer.load_state_dict(state['optimizer'])
-    start_epoch = 0
-    
-    # Initialize scene states for all dataset.
-    if(args.use_scene and not args.stage2):
-        scene_h0_list = state['scene_h0_list'].clone()
-        scene_c0_list = state['scene_c0_list'].clone()    
 
-else: 
-    start_epoch = 0
+    # Initialize scene states for all dataset.
+    scene_states = state['scene_states']
+    scene_info = state['scene_info']
+
+    
 
 # Init
 best_MSE_validation = 100000; 
 best_epoch = 10000000
+start_epoch = 0
 
 for e in range(start_epoch, args.nepochs):
 
@@ -131,9 +109,11 @@ for e in range(start_epoch, args.nepochs):
 
         # Load batch training data 
         batch  = data_loader.next_batch(randomUpdate=True)
-
-        # Get hidden states for each target in this batch
         nPeds = batch["ped_ids"].size
+        dataset_id = batch["dataset_id"]
+        net.current_dataset = dataset_id
+
+        # Init hidden states for each target in this batch
         h0 = Variable(torch.zeros(args.num_layers, nPeds, args.rnn_size))
         c0 = Variable(torch.zeros(args.num_layers, nPeds, args.rnn_size))
         if(args.use_cuda): 
@@ -167,13 +147,8 @@ for e in range(start_epoch, args.nepochs):
 
             # Get the hidden states of scene in current frame
             #scene_grid_h0, scene_grid_c0 ~ [num_layers,nPeds,rnn_size]
-            if(args.use_scene):
-                scene_grid_h0, scene_grid_c0, list_of_grid_id = get_scene_states(xabs, batch["dataset_id"], \
-                                         args.scene_grid_num, scene_h0_list, scene_c0_list, args)
-                net.set_scene_hidden_states(scene_grid_h0, scene_grid_c0)                # Set hidden states for this model
-                net.current_grid_list = list_of_grid_id 
-                net.current_dataset = batch["dataset_id"] 
-
+            scene_grid_h0, scene_grid_c0 = get_scene_states(xabs, dataset_id, scene_states,  scene_info, args)
+            net.set_scene_hidden_states(scene_grid_h0, scene_grid_c0)                # Set hidden states for this model
 
             # set others model parameters  
             net.batch_size = batch["ped_ids_frame"][t].size
@@ -186,16 +161,9 @@ for e in range(start_epoch, args.nepochs):
             h0[:,indices,:] = net.i_h0.clone()
             c0[:,indices,:] = net.i_c0.clone()
 
-
-            # TO-DO: Update scene's states
-            if(args.use_scene):
-                grid_id_unique = np.unique(list_of_grid_id.data.cpu().numpy())
-                for grid_id in grid_id_unique:
-                    if(grid_id in allow_grid_list[batch["dataset_id"]]):
-                        for b in range(net.batch_size):
-                            if(list_of_grid_id[b].item() == grid_id and random.randint(0, 1) == 1):
-                                scene_c0_list[batch["dataset_id"],grid_id] =  net.scene_grid_c0[:,b,:].data.clone() 
-
+            # Update scene states
+            scene_grid_h0, scene_grid_c0 = net.get_scene_hidden_states()
+            scene_states = update_scene_states(xabs, dataset_id, scene_states, scene_info, scene_grid_h0, scene_grid_c0, args)
 
 
         # Loss of batch and updating parameters 
@@ -219,25 +187,15 @@ for e in range(start_epoch, args.nepochs):
 
     # SAVE EPOCH MODEL
     save_model_file = '{}/net_epoch_{:06d}.pt'.format(args.save_model_dir,e)
-    logger.write("saved model to " +  save_model_file)
-
-    if(args.use_scene):
-        state = {
-            'epoch': e,
-            'scene_h0_list': scene_h0_list,
-            'scene_c0_list': scene_c0_list,
-            'state_dict': net.state_dict(),
-            'optimizer': optimizer.state_dict()
-        }
-    else:
-        state = {
-            'epoch': e,
-            'state_dict': net.state_dict(),
-            'optimizer': optimizer.state_dict()
-        }
-
+    state = {
+        'epoch': e,
+        'scene_states': scene_states,
+        'scene_info': scene_info,
+        'state_dict': net.state_dict(),
+        'optimizer': optimizer.state_dict()
+    }
     torch.save(state,save_model_file)   
-    
+    logger.write("saved model to " +  save_model_file)
 
 #--------------------------------------------------------------------------------------------$
 #                             VALIDATION SECTION 

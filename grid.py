@@ -205,7 +205,7 @@ def get_nonlinear_trajectories(batch,args):
 
     return nonlinear_traj
 
-def get_allow_grids(data_loader, args):
+def get_non_linear_grids(data_loader, args):
 
     allow_grid_list = [[] for i in range(5)]
 
