@@ -78,12 +78,12 @@ def extract_nonlinear_trajectories(batch, args):
 
     """
     nonlinear_traj = []
-    for ped in batch["ped_ids"]: 
+    for ped in batch["all_pids"]: 
         # Gete trajectory of each pedestrian
         traj = [] 
         for t in range(0,args.observe_length + args.predict_length):
-            pid_idx = np.where(batch["ped_ids_frame"][t] == ped)[0]
-            traj.append(batch["batch_data_absolute"][t][pid_idx])
+            pid_idx = np.where(batch["frame_pids"][t] == ped)[0]
+            traj.append(batch["loc_abs"][t][pid_idx])
         
         traj = np.vstack(traj[:])
         if(check_non_linear_trajectory_v2(traj,thresh = 0.15)): 
@@ -167,8 +167,8 @@ def get_nonlinear_grids(data_loader, args):
 
     """
     # Intialize nonlinear_grid_list
-    nonlinear_grid_list = [[] for i in range(args.num_datasets)]
-    nonlinear_sub_grids_maps =  [[[] for j in range(args.num_grid_cells**2)] for i in range(args.num_datasets)]
+    nonlinear_grid_list = [[] for i in range(args.max_datasets)]
+    nonlinear_sub_grids_maps =  [[[] for j in range(args.num_grid_cells**2)] for i in range(args.max_datasets)]
 
     # Find all non-linear trajectories and which dataset these non-linear
     # trajectories belongs to 
@@ -210,7 +210,7 @@ def get_route_info(data_loader, args):
     A route is a path from one sub_grid to another sub_grid.
 
     """
-    route_info = [[[] for j in range(args.num_grid_cells**2)] for i in range(args.num_datasets)]
+    route_info = [[[] for j in range(args.num_grid_cells**2)] for i in range(args.max_datasets)]
 
     for i in range(0,data_loader.num_train_batches):
 
@@ -218,19 +218,19 @@ def get_route_info(data_loader, args):
         batch  = data_loader.next_batch(randomUpdate=False, jump = args.predict_length + args.observe_length)
         numberFrames = len(batch["frame_list"])
 
-        for ped in batch["ped_ids"]: 
+        for ped in batch["all_pids"]: 
             for t in range(0,numberFrames-1):
 
                 # find location of this ped in frame t and t+1
-                idxInBatch_t = np.where(batch["ped_ids_frame"][t] == ped)[0]
-                idxInBatch_next = np.where(batch["ped_ids_frame"][t+1] == ped)[0]
+                idxInBatch_t = np.where(batch["frame_pids"][t] == ped)[0]
+                idxInBatch_next = np.where(batch["frame_pids"][t+1] == ped)[0]
 
                 # if this ped does not have location in this or next frame,
                 # continue to next targets.
                 if(idxInBatch_t.size is 0 or idxInBatch_next.size is 0): break   # go to next pedestrian
 
-                loc_t = batch["batch_data_absolute"][t][idxInBatch_t][0]
-                loc_next = batch["batch_data_absolute"][t+1][idxInBatch_next][0]
+                loc_t = batch["loc_abs"][t][idxInBatch_t][0]
+                loc_next = batch["loc_abs"][t+1][idxInBatch_next][0]
 
                 # find grid-cell 
                 gi_t = get_grid_cell_index(loc_t, args.num_grid_cells, range = [-1,1,-1,1])
@@ -270,18 +270,18 @@ def get_common_grids(data_loader, args):
 
     """
     # Intialize common_grid_list
-    common_grid_list = [[] for i in range(args.num_datasets)]
-    common_sub_grids_maps =  [[[] for j in range(args.num_grid_cells**2)] for i in range(args.num_datasets)]
+    common_grid_list = [[] for i in range(args.max_datasets)]
+    common_sub_grids_maps =  [[[] for j in range(args.num_grid_cells**2)] for i in range(args.max_datasets)]
     
     # Calculate route information
     route_info = get_route_info(data_loader, args) 
 
     # Calculate common movements score in each grid-cell
     # mov_score = sum(counts)/sum(routes)
-    mov_score =  [[[] for j in range(args.num_grid_cells**2)] for i in range(args.num_datasets)]
-    common_info =  [[[] for j in range(args.num_grid_cells**2)] for i in range(args.num_datasets)]
+    mov_score =  [[[] for j in range(args.num_grid_cells**2)] for i in range(args.max_datasets)]
+    common_info =  [[[] for j in range(args.num_grid_cells**2)] for i in range(args.max_datasets)]
 
-    for dataset_id in range(args.num_datasets):
+    for dataset_id in range(args.max_datasets):
         for gi in range(args.num_grid_cells**2):
             
             # number of routes in a grid-cell
@@ -295,7 +295,7 @@ def get_common_grids(data_loader, args):
             mov_score[dataset_id][gi] = 0 if number_routes is 0 else number_counts/number_routes
 
     # Get common_grid_list
-    for dataset_id in range(args.num_datasets):
+    for dataset_id in range(args.max_datasets):
 
         sorted_grids = [i[0] for i in sorted(enumerate(mov_score[dataset_id]), key=lambda x:x[1], reverse=True)]
         if(dataset_id in args.train_dataset):
@@ -309,89 +309,3 @@ def get_common_grids(data_loader, args):
 
 
     return common_grid_list, common_sub_grids_maps
-
-def get_scene_states(xabs, dataset_id, scene_states, scene_info, args):
-    
-    """
-    functions get scene_states (scene memories) for each current pedestrian
-    """
-    num_peds = xabs.size(0)                           # x_t is location at time t,  x_t ~ [batch_size,2]
-    
-    # define 2 types (nonlinear and common movements) of a grid-cell memory
-    nonlinear_grid_h0 =  torch.zeros((args.num_layers, num_peds, args.rnn_size))  
-    nonlinear_grid_c0 =  torch.zeros((args.num_layers, num_peds, args.rnn_size)) 
-    common_grid_h0 =  torch.zeros((args.num_layers, num_peds, args.rnn_size))
-    common_grid_c0 =  torch.zeros((args.num_layers, num_peds, args.rnn_size))  
-    scene_grid_c0 =  torch.zeros((args.num_layers, num_peds, args.rnn_size))
-    scene_grid_h0 =  torch.zeros((args.num_layers, num_peds, args.rnn_size))
-
-    if(args.use_cuda):
-        nonlinear_grid_h0, nonlinear_grid_c0 =  nonlinear_grid_h0.cuda(), nonlinear_grid_c0.cuda() 
-        common_grid_h0, common_grid_c0 =  common_grid_h0.cuda(), common_grid_c0.cuda() 
-        scene_grid_h0, scene_grid_c0 =  scene_grid_h0.cuda(), scene_grid_c0.cuda() 
-
-    if(args.nonlinear_grids is False and args.num_common_grids == 0): 
-        return scene_grid_h0, scene_grid_c0
-
-    # For each ped in the frame (existent and non-existent)
-    for pid in range(num_peds):
-
-        gid =  get_grid_cell_index(xabs[pid].cpu().numpy(), args.num_grid_cells)
-        sid =  get_sub_grid_cell_index(xabs[pid].cpu().numpy(), args.num_grid_cells, args.num_sub_grids)
-
-        if(args.nonlinear_grids and gid in scene_info["nonlinear_grid_list"][dataset_id]):
-            if((args.use_sub_grids_map and sid in scene_info["nonlinear_sub_grids_maps"][dataset_id][gid]) \
-                or args.use_sub_grids_map is False):
-
-                nonlinear_grid_h0[:,pid,:]  = scene_states["nonlinear_h0_list"][dataset_id][gid]
-                nonlinear_grid_c0[:,pid,:]  = scene_states["nonlinear_c0_list"][dataset_id][gid]
-
-
-        if(args.num_common_grids >0 and gid in scene_info["common_grid_list"][dataset_id]): 
-            if((args.use_sub_grids_map and sid in scene_info["common_sub_grids_maps"][dataset_id][gid]) \
-                or args.use_sub_grids_map is False ):
-
-                common_grid_h0[:,pid,:]  = scene_states["common_h0_list"][dataset_id][gid]
-                common_grid_c0[:,pid,:]  = scene_states["common_c0_list"][dataset_id][gid]
-
-        # return the final scene states are average of nonlinear and common movements. 
-        scene_grid_h0[:,pid,:] = 0.5*(nonlinear_grid_h0[:,pid,:] + common_grid_h0[:,pid,:])
-        scene_grid_c0[:,pid,:] = 0.5*(nonlinear_grid_c0[:,pid,:] + common_grid_c0[:,pid,:])
-
-    scene_grid_h0 = scene_grid_h0.view(-1,num_peds,args.rnn_size)
-    scene_grid_c0 = scene_grid_c0.view(-1,num_peds,args.rnn_size)
-
-    return scene_grid_h0, scene_grid_c0
-
-
-def update_scene_states(xabs, dataset_id, scene_states, scene_info, scene_grid_h0, scene_grid_c0, args):
-
-    """
-    functions update scene_states (scene memories)
-    """
-
-    num_peds = xabs.size(0)                           # x_t is location at time t,  x_t ~ [batch_size,2]
-
-    if(args.nonlinear_grids is False and  args.num_common_grids  == 0): 
-        return scene_states
-
-    for pid in range(num_peds):
-        gid =  get_grid_cell_index(xabs[pid].cpu().numpy(), args.num_grid_cells)
-        sid =  get_sub_grid_cell_index(xabs[pid].cpu().numpy(), args.num_grid_cells, args.num_sub_grids)
-
-        if(args.nonlinear_grids and gid in scene_info["nonlinear_grid_list"][dataset_id]):
-            if((args.use_sub_grids_map and sid in scene_info["nonlinear_sub_grids_maps"][dataset_id][gid]) \
-                or args.use_sub_grids_map is False):
-
-                scene_states["nonlinear_h0_list"][dataset_id][gid] = scene_grid_h0[:,pid,:].data.clone()
-                scene_states["nonlinear_c0_list"][dataset_id][gid] = scene_grid_c0[:,pid,:].data.clone()
-
-        if(args.num_common_grids > 0 and gid in scene_info["common_grid_list"][dataset_id]): 
-            if((args.use_sub_grids_map and sid in scene_info["common_sub_grids_maps"][dataset_id][gid]) \
-                or args.use_sub_grids_map is False ):      
-                
-                scene_states["common_h0_list"][dataset_id][gid] = scene_grid_h0[:,pid,:].data.clone()
-                scene_states["common_c0_list"][dataset_id][gid] = scene_grid_c0[:,pid,:].data.clone()
-
-
-    return scene_states

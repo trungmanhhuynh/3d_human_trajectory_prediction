@@ -21,7 +21,7 @@ def calculate_mean_square_error(batch, results, predicted_pids, args):
 	for pedId in predicted_pids:
 		isSelected = True 
 		for t in range(0,args.observe_length):
-			presentIdx = np.where( batch["ped_ids_frame"][t] == pedId)[0]
+			presentIdx = np.where( batch["frame_pids"][t] == pedId)[0]
 			if(presentIdx.size == 0): # if predicted peds does not have enough
 				isSelected = False 	  # T_obs + T_predict frames
 				break 
@@ -43,7 +43,7 @@ def calculate_mean_square_error(batch, results, predicted_pids, args):
 		mseFrame = 0 
 		for pedId in selectedPeds:
 			# Find idx of this selected ped in batch and in results 
-			idxInBatch = np.where( batch["ped_ids_frame"][t] == pedId)[0]
+			idxInBatch = np.where( batch["frame_pids"][t] == pedId)[0]
 			idxInPredict = np.where(predicted_pids == pedId)[0]
 			
 			if(idxInBatch.size == 0 or idxInPredict.size == 0):
@@ -51,7 +51,7 @@ def calculate_mean_square_error(batch, results, predicted_pids, args):
 
 			# Get predicted location and true location
 			predict_loc = results[t][idxInPredict]
-			true_loc = batch["batch_data_absolute"][t][idxInBatch]
+			true_loc = batch["loc_abs"][t][idxInBatch]
 			
 			# convert metrics
 			predict_loc = convert_input2output_metric(predict_loc, batch["dataset_id"], args.input_metric, args.output_metric)
@@ -77,7 +77,7 @@ def calculate_mean_square_error_nonlinear(batch, results, predicted_pids, args):
 	for pedId in predicted_pids:
 		isSelected = True 
 		for t in range(0,args.observe_length):
-			presentIdx = np.where( batch["ped_ids_frame"][t] == pedId)[0]
+			presentIdx = np.where( batch["frame_pids"][t] == pedId)[0]
 			if(presentIdx.size == 0): # if predicted peds does not have enough
 				isSelected = False 	  # T_obs + T_predict frames
 				break 
@@ -113,10 +113,10 @@ def calculate_mean_square_error_nonlinear(batch, results, predicted_pids, args):
 		# Get trajectory of this target
 		traj = []
 		for ti in range(0,args.observe_length + args.predict_length):
-			pid_idx = np.where(batch["ped_ids_frame"][ti] == pid)[0]
+			pid_idx = np.where(batch["frame_pids"][ti] == pid)[0]
 			if(pid_idx.size == 0):
 				break 
-			traj.append(batch["batch_data_absolute"][ti][pid_idx])
+			traj.append(batch["loc_abs"][ti][pid_idx])
 
 		# check if ped's trajectory is non-linear 
 		if(is_nonlinear(traj)): 
@@ -137,7 +137,7 @@ def calculate_mean_square_error_nonlinear(batch, results, predicted_pids, args):
 		mseFrame = 0 
 		for pedId in nonLinearPeds:
 			# Find idx of this selected ped in batch and in results 
-			idxInBatch = np.where( batch["ped_ids_frame"][t] == pedId)[0]
+			idxInBatch = np.where( batch["frame_pids"][t] == pedId)[0]
 			idxInPredict = np.where(predicted_pids == pedId)[0]
 			
 			if(idxInBatch.size == 0):
@@ -145,7 +145,7 @@ def calculate_mean_square_error_nonlinear(batch, results, predicted_pids, args):
 
 			# Get predicted location and true location
 			predict_loc = results[t][idxInPredict]
-			true_loc = batch["batch_data_absolute"][t][idxInBatch]  
+			true_loc = batch["loc_abs"][t][idxInBatch]  
 			
 			# convert metrics
 			predict_loc = convert_input2output_metric(predict_loc, batch["dataset_id"], args.input_metric, args.output_metric)
@@ -171,7 +171,7 @@ def calculate_final_displacement_error(batch, results, predicted_pids, args):
 	for pedId in predicted_pids:
 		isSelected = True 
 		for t in range(0,args.observe_length + args.predict_length):
-			presentIdx = np.where(batch["ped_ids_frame"][t] == pedId)[0]
+			presentIdx = np.where(batch["frame_pids"][t] == pedId)[0]
 			if(presentIdx.size == 0): # if predicted peds does not have enough
 				isSelected = False 	  # T_obs + T_predict frames
 				break 
@@ -189,7 +189,7 @@ def calculate_final_displacement_error(batch, results, predicted_pids, args):
 	lastFrameList = []
 	for pedId in selectedPeds:
 		for t in range(args.observe_length , args.observe_length + args.predict_length):
-			presentIdx = np.where(batch["ped_ids_frame"][t] == pedId)[0]
+			presentIdx = np.where(batch["frame_pids"][t] == pedId)[0]
 
 			# if ped is not present in this frame t, then it's
 			# last frame is previous frame
@@ -212,12 +212,12 @@ def calculate_final_displacement_error(batch, results, predicted_pids, args):
 	for pedId in selectedPeds:
 
 		# Find idx of this selected ped in batch and in results 
-		idxInBatch = np.where(batch["ped_ids_frame"][lastFrame] == pedId)[0]
+		idxInBatch = np.where(batch["frame_pids"][lastFrame] == pedId)[0]
 		idxInPredict = np.where(predicted_pids == pedId)[0]
 		
 		# Get predicted location and true location
 		predict_loc = results[lastFrame][idxInPredict]
-		true_loc = batch["batch_data_absolute"][lastFrame][idxInBatch]  
+		true_loc = batch["loc_abs"][lastFrame][idxInBatch]  
 			
 		# convert metrics
 		predict_loc = convert_input2output_metric(predict_loc, batch["dataset_id"], args.input_metric, args.output_metric)

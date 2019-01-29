@@ -139,27 +139,4 @@ class Model_LSTM_1L(nn.Module):
         log_gaussian = logsumexp(log_gaussian + log_pi)
 
         return log_gaussian.sum()
-
-
-    def get_best_location(self, mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits):
-            
-        batch_size = mu1.size(0)
-
-        # x_best ~ [batch_size, 2]
-        x_best = Variable(torch.zeros(batch_size,2))
-        if(self.use_cuda):
-            x_best = x_best.cuda()
-
-        for i in range(batch_size):
-
-            pi = nn.functional.softmax(pi_logits[i],dim =0)
-
-            idx, = random.choices(range(self.nmixtures), weights = pi.data.tolist())
-        
-            x_best[i,0] = mu1[i,idx]
-            x_best[i,1] = mu2[i,idx] 
-
-                
-        return x_best 
-    
     

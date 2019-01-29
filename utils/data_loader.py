@@ -79,10 +79,8 @@ class DataLoader():
     def frame_preprocess(self, data_dirs, data_file):
         '''
         This function splits video data into batches of frames. Each batch
-        is a dictionary.
-        
+        is a dictionary. 
         + Each dataset will have its own set of batches, stored in all_data 
-        
         '''
 
         # Intialize output values 
@@ -127,12 +125,12 @@ class DataLoader():
 
                 # Initialize batch as a dictionary 
                 batch = {
-                    "batch_data_absolute": [] ,          # location x,y of peds in each frame
-                    "batch_data_offset": [] ,            # location x,y of peds in each frame
-                    "ped_ids_frame": [],                 # ped ids in each frames
-                    "ped_ids": [] ,                      # all ped ids in this batch
-                    "frame_list": -1 ,                   # list of frame number of this batch
-                    "dataset_id": -1                     # dataset id of this batch
+                    "loc_abs": [] ,                       # location x,y of peds in each frame
+                    "loc_off": [] ,                       # location x,y of peds in each frame
+                    "frame_pids": [],                     # ped ids in each frames
+                    "all_pids": [] ,                      # all ped ids in this batch
+                    "frame_list": -1 ,                    # list of frame number of this batch
+                    "dataset_id": -1                      # dataset id of this batch
                 }
 
                 # let me get all mixed data for the batch, then I will split them out
@@ -151,7 +149,7 @@ class DataLoader():
                 batch["dataset_id"] = dataset_id
 
                 # Set all ped ids of this batch
-                batch["ped_ids"] = np.unique(temp_batch[:,1])
+                batch["all_pids"] = np.unique(temp_batch[:,1])
 
                 #np.set_printoptions(suppress=True)
 
@@ -160,14 +158,14 @@ class DataLoader():
                     frame_data = temp_batch[temp_batch[:,0] == frameId,:]
 
                     # Store x,y location 
-                    batch["batch_data_absolute"].append(frame_data[:,[2,3]])        
+                    batch["loc_abs"].append(frame_data[:,[2,3]])        
             
                     # Store ped ids 
-                    batch["ped_ids_frame"].append(frame_data[:,1])       
+                    batch["frame_pids"].append(frame_data[:,1])       
 
                 # Get data_offset 
-                batch_data_offset = self.calculate_batch_data_offset(batch)
-                batch["batch_data_offset"] = batch_data_offset
+                loc_off = self.calculate_loc_off(batch)
+                batch["loc_off"] = loc_off
 
                 # End of processing a batch    
                 # Gather into all batches
@@ -185,7 +183,7 @@ class DataLoader():
         pickle.dump((all_batches, num_batches_list), f, protocol=2)
         f.close()
 
-    def calculate_batch_data_offset(self, batch):
+    def calculate_loc_off(self, batch):
         
 
         def Cloning(li1):
@@ -193,24 +191,24 @@ class DataLoader():
             for item in li1: li_copy.append(np.copy(item))
             return li_copy
  
-        # Initialize batch_data_offset as batch_data_absolute
-        batch_data_offset = Cloning(batch["batch_data_absolute"])
+        # Initialize loc_off as loc_abs
+        loc_off = Cloning(batch["loc_abs"])
 
         # Process each target
-        for ped in batch["ped_ids"]:
+        for ped in batch["all_pids"]:
             for t in reversed(range(self.tsteps + 1)):
-                if ped in batch["ped_ids_frame"][t]:
-                    idx_loc_t =  batch["ped_ids_frame"][t].tolist().index(ped)
+                if ped in batch["frame_pids"][t]:
+                    idx_loc_t =  batch["frame_pids"][t].tolist().index(ped)
 
                     if(t == 0): # t is starting frame
-                        batch_data_offset[t][idx_loc_t,:]  =  0
-                    elif(ped in batch["ped_ids_frame"][t-1]): # t is not a starting frame
-                        idx_loc_prev_t =  batch["ped_ids_frame"][t-1].tolist().index(ped)
-                        batch_data_offset[t][idx_loc_t] =  batch_data_offset[t][idx_loc_t] -  batch_data_offset[t-1][idx_loc_prev_t]
+                        loc_off[t][idx_loc_t,:]  =  0
+                    elif(ped in batch["frame_pids"][t-1]): # t is not a starting frame
+                        idx_loc_prev_t =  batch["frame_pids"][t-1].tolist().index(ped)
+                        loc_off[t][idx_loc_t] =  loc_off[t][idx_loc_t] -  loc_off[t-1][idx_loc_prev_t]
                     else:   # t is starting frame
-                        batch_data_offset[t][idx_loc_t,:]  =  0
+                        loc_off[t][idx_loc_t,:]  =  0
 
-        return batch_data_offset
+        return loc_off
 
     def load_preprocessed(self, data_file):
         '''
