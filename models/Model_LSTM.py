@@ -1,5 +1,5 @@
 '''
- Scene Model
+ Model: Vanilla with location offsets as inputs.
  Author: Huynh Manh
 
 '''
@@ -13,7 +13,6 @@ from matplotlib import pyplot as plt
 from bs4 import BeautifulSoup as Soup
 import numpy as np
 import glob
-from utils.scene_grids import get_nonlinear_grids, get_common_grids, get_grid_cell_index, get_sub_grid_cell_index
 
 def logsumexp(x):
     x_max, _ = x.max(dim=1,keepdim=True)
@@ -43,7 +42,7 @@ class Model_LSTM(nn.Module):
 
         #-----Layer 1: Individual Movements
         self.ReLU = nn.ReLU()
-        self.I_Embedding = nn.Linear(2,self.embedding_size)     
+        self.Embedding_Input = nn.Linear(2,self.embedding_size)
         self.I_LSTM      = nn.LSTM(self.embedding_size, self.rnn_size, num_layers=1, dropout=self.dropout)      
         self.I_Output     = nn.Linear(self.rnn_size, self.output_size)
 
@@ -54,21 +53,12 @@ class Model_LSTM(nn.Module):
         self.ped_ids = batch["all_pids"]                      # Set ped ids for current batch
         self.dataset_id = batch["dataset_id"]                # Set dataset id for current batch
 
-        # Initialize states for all targets in current batch
-        self.h0 = torch.zeros(self.num_layers, self.ped_ids.size, self.rnn_size)
-        self.c0 = torch.zeros(self.num_layers, self.ped_ids.size, self.rnn_size)
+    def init_target_hidden_states(self):
+       # Initialize states for all targets in current batch
+        self.i_h0 = torch.zeros(self.num_layers, len(self.ped_ids), self.rnn_size)
+        self.i_c0 = torch.zeros(self.num_layers, len(self.ped_ids), self.rnn_size)
         if(self.use_cuda): 
             self.h0, self.c0 = self.h0.cuda(), self.c0.cuda() 
-
-    def get_target_hidden_states(self, cur_frame): 
-        
-        indices = np.where(cur_frame["frame_pids"][:, None] ==  self.ped_ids[None, :])[1]            
-        indices = torch.LongTensor(indices)
-        if(self.use_cuda): indices = indices.cuda()
-
-        # Init hidden/cell states for peds
-        self.i_h0 = torch.index_select(self.h0,1,indices).clone()
-        self.i_c0 = torch.index_select(self.c0,1,indices).clone()
 
     def update_target_hidden_states(self, cur_frame): 
         
@@ -81,14 +71,13 @@ class Model_LSTM(nn.Module):
 
     def forward(self, xoff):
         # Forward bacth data at time t
-
-        #embedding_x ~ [1, batch_size, embbeding_size]
-        embedding_x = self.I_Embedding(xoff.unsqueeze(0))
-        embedding_x = self.ReLU(embedding_x)
+        embedding_input = self.Embedding_Input(xoff.unsqueeze(0))
+        embedding_input = self.ReLU(embedding_input)
 
         # I_LSTM_output ~ [1,batch_size,rnn_size]
-        i_lstm_output,(self.i_h0, self.i_c0) = self.I_LSTM(embedding_x,(self.i_h0, self.i_c0))
-
+        i_lstm_output,(self.i_h0, self.i_c0) = self.I_LSTM(embedding_input,(self.i_h0, self.i_c0))
+        i_lstm_output = self.ReLU(i_lstm_output)
+        
         # I_output ~ [1,batch_size, embedding_size]
         final_output = self.I_Output(i_lstm_output)
 
@@ -114,18 +103,12 @@ class Model_LSTM(nn.Module):
 
         self.batch_size = xabs.size(0)
 
-        #  get individual and scene states for peds in current frame
-        self.get_target_hidden_states(cur_frame)             # Get the hidden states of targets in current frames
-
         # forward 
         mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits = self.forward(xoff)
 
         #loss_t = self.calculate_loss_mse(xabs_pred, xabs_next, cur_frame["frame_pids"], next_frame["frame_pids"])
         loss_t = self.calculate_loss(xoff_next, mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits, cur_frame["frame_pids"], next_frame["frame_pids"])
         
-        # update individual and scene states back to storage
-        self.update_target_hidden_states(cur_frame)
-
         return loss_t
 
     def sample(self, cur_frame):
@@ -136,9 +119,6 @@ class Model_LSTM(nn.Module):
         if(self.use_cuda): xoff, xabs  = xoff.cuda(), xabs.cuda()   
 
         self.batch_size = xoff.size(0)
-
-        #  get individual and scene states for peds in current frame
-        self.get_target_hidden_states(cur_frame)             # Get the hidden states of targets in current frames
 
         # forward 
         mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits = self.forward(xoff)
@@ -151,30 +131,8 @@ class Model_LSTM(nn.Module):
 
     def calculate_loss(self, x_next, mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits, ped_ids_t, ped_ids_next):
 
-        # Which data should be used to calculate loss ? 
-        # Only caculate for peds that presents in both frames 
-        indices = np.where(ped_ids_t[:, None] == ped_ids_next[None, :])
-        
-        # if there is no same peds present in next frame
-        # then return loss = 0 ?
-        if(indices[0].size ==0): return 0 
-
-        indices_t = torch.LongTensor(indices[0])
-        indices_tplus1 = torch.LongTensor(indices[1])
-        if(self.use_cuda):
-            indices_t,indices_tplus1 = indices_t.cuda(), indices_tplus1.cuda()
-
-        # Use indices to select which peds's location used for calculating loss
-        mu1  = torch.index_select(mu1,0,indices_t)
-        mu2  = torch.index_select(mu2,0,indices_t)
-        log_sigma1  = torch.index_select(log_sigma1,0,indices_t)
-        log_sigma2  = torch.index_select(log_sigma2,0,indices_t)
-        rho  = torch.index_select(rho,0,indices_t)
-        pi_logits  = torch.index_select(pi_logits,0,indices_t)
-
         # x1, x2 ~ [self.batch_size, 1]   
         x_next  = x_next.view(-1,2) 
-        x_next  = torch.index_select(x_next,0,indices_tplus1)
         x1, x2 = x_next.split(1,dim=1)
 
         def logP_gaussian(x1, x2, mu1, mu2, log_sigma1, log_sigma2, rho, pi_logits, nmixtures):

@@ -10,6 +10,7 @@ import numpy as np
 import random
 import math
 import time
+from datetime import datetime
 
 class DataLoader():
 
@@ -40,7 +41,7 @@ class DataLoader():
                 self.train_fraction =  0.5 #50% batches used for training  
 
         else:
-            self.test_dataset = [args.test_dataset]
+            self.test_dataset = [args.model_dataset]
             self.test_fraction = 0.5 # 50% batches used for testing  
         
         self.input_metric = args.input_metric
@@ -82,16 +83,12 @@ class DataLoader():
         is a dictionary. 
         + Each dataset will have its own set of batches, stored in all_data 
         '''
-
         # Intialize output values 
-        all_batches = []     
-        num_batches_list = []        # number baches of each dataset
+        all_batches = [[] for i in range(self.num_datasets)]            # batch data of each dataset
 
         # Proceed each dataset at a time
         for dataset_id, directory in enumerate(data_dirs):
         
-            all_batches.append([])
-
             # Load the data from the  file
             if(self.input_metric is "meters"):
                 file_path = os.path.join(directory, 'data_normalized_meters_2.5fps.txt')
@@ -100,113 +97,81 @@ class DataLoader():
             else: 
                 print("UTIL:Invalid input metric") 
                 sys.exit(0) 
-
             data = np.genfromtxt(file_path, delimiter=',')
-
-            # Get all frame numbers of the current dataset
-            frameList = np.unique(data[:,0]).tolist()            
 
             # Read frame-by-frame and store them to a temporary data for this dataset 
             dataset_data = [] 
-            for ind, frame in enumerate(frameList):
+            frameList = np.unique(data[:,0]).tolist()      
+            for frame in frameList:
+                pedDataInFrame = data[data[:,0] == frame,:]   # Extract all pedestrians in current frame                                         
+                dataset_data.append(pedDataInFrame)           # Store it to temporary dataset_data
 
-                # Extract all pedestrians in current frame
-                pedDataInFrame = data[data[:,0] == frame,:]   # [frameId, targetId, x ,y]
-
-                # Store it to temporary dataset_data
-                dataset_data.append(pedDataInFrame)
-            
-            # number of frames of refined datasetdata
-            nFrames = len(dataset_data)
-            nBatches = nFrames - (self.tsteps + 1)
-            self.logger.write("{}: {} --> {} frames ".format(directory , len(frameList), nFrames))
-
-            for i in range(0,  nFrames - (self.tsteps + 1)):
+            # Gather batch data (by frame) of pedestrians have trajectories = args.predict_length + args.observed_length 
+            # Each batch slides by 1 frame 
+            for i in range(0, len(dataset_data) - self.tsteps):
 
                 # Initialize batch as a dictionary 
-                batch = {
-                    "loc_abs": [] ,                       # location x,y of peds in each frame
-                    "loc_off": [] ,                       # location x,y of peds in each frame
-                    "frame_pids": [],                     # ped ids in each frames
-                    "all_pids": [] ,                      # all ped ids in this batch
-                    "frame_list": -1 ,                    # list of frame number of this batch
-                    "dataset_id": -1                      # dataset id of this batch
-                }
-
-                # let me get all mixed data for the batch, then I will split them out
-                # for better control of it. 
-                temp_batch = dataset_data[i:i+self.tsteps+1]                #  size of tsteps + 1,
-                                                                            # each has [frameId, targetId, x ,y]
-                # Convert temp_batch to array for easier processing
+                batch = {"loc_abs":[],"loc_off":[],"all_pids":[],"frame_list":-1,"dataset_id":-1}
+                                  
+                temp_batch = dataset_data[i: i + self.tsteps]                    # batch of tsteps frames, each ~ [frameId, targetId, x ,y]
                 temp_batch = np.vstack(temp_batch)
-                #np.set_printoptions(suppress=True)
-                #print("temp_batch =", temp_batch)
-
-                # Set start frame of this batch 
-                batch["frame_list"] = np.unique(temp_batch[:,0])
-
-                # Set dataset id of this batch 
-                batch["dataset_id"] = dataset_id
-
-                # Set all ped ids of this batch
-                batch["all_pids"] = np.unique(temp_batch[:,1])
-
-                #np.set_printoptions(suppress=True)
-
+                sel_pids = self.get_selected_peds(temp_batch)                    # seleted pids have traj = pred + obs length
+                if(len(sel_pids) == 0): continue                                 # jump to next frame
+                                                                                 # if there is no sastified peds
+                batch["frame_list"] = np.unique(temp_batch[:,0])                 # List of frame numbers
+                batch["all_pids"]   = np.asarray(sel_pids)                       # List of ped ids
+                batch["dataset_id"] = dataset_id                                 # Set dataset id of this batch 
+                # Gather absolute locations for each selected pids
                 for ind, frameId in enumerate(batch["frame_list"]):
-                    # Find all data index of this frame
                     frame_data = temp_batch[temp_batch[:,0] == frameId,:]
-
-                    # Store x,y location 
+                    frame_data =  [frame_data[frame_data[:,1] == pid,:] for pid in sel_pids]
+                    frame_data = np.vstack(frame_data)
+                    # Store absoluate x,y location 
                     batch["loc_abs"].append(frame_data[:,[2,3]])        
             
-                    # Store ped ids 
-                    batch["frame_pids"].append(frame_data[:,1])       
+                batch["loc_off"] = self.calculate_loc_off(batch)            # Get data_offset of this batch
+                all_batches[dataset_id].append(batch)                       # Gather into all batches
 
-                # Get data_offset 
-                loc_off = self.calculate_loc_off(batch)
-                batch["loc_off"] = loc_off
+            # Finish processing for one dataset     
+            self.logger.write("{}: #frames: {}, #batches: {}".format(directory, len(frameList), len(all_batches[dataset_id])))
 
-                # End of processing a batch    
-                # Gather into all batches
-                all_batches[dataset_id].append(batch)
-
-            # End of processing one dataset     
-            num_batches_list.append(nBatches)
-            self.logger.write("{}: number of batches {}".format(directory, len(all_batches[dataset_id])))
-
-        self.num_batches = sum(num_batches_list)
-        self.logger.write("Total number of batches: {}".format(self.num_batches))
-
-        # Save the tuple (all_frame_data, frameList_data, numPeds_data) in the pickle file
+        # Save all_batches in the pickle file
         f = open(data_file, "wb")
-        pickle.dump((all_batches, num_batches_list), f, protocol=2)
+        pickle.dump(all_batches, f, protocol = 2)
         f.close()
 
-    def calculate_loc_off(self, batch):
-        
+    def get_selected_peds(self, batch):
+        """
+            function to find peds that have trajectory length = pred + obs length
+        """
+        all_pids = np.unique(batch[:,1])            # all ped ids in this batch
+        ped_list = []                               # init the selected pid list 
+        # Scan through each pid and check if its trajectory sastifies the length
+        for pid in all_pids:
+            traj_length = np.sum(batch[:,1] == pid)
+            if(traj_length == self.tsteps):
+                ped_list.append(pid)
 
+        return ped_list
+
+    def calculate_loc_off(self, batch):      
+        """
+            function calculate offset locations in batch.
+        """
         def Cloning(li1):
             li_copy =[]
             for item in li1: li_copy.append(np.copy(item))
             return li_copy
  
-        # Initialize loc_off as loc_abs
-        loc_off = Cloning(batch["loc_abs"])
+        loc_off = Cloning(batch["loc_abs"])                     # Initialize loc_off as loc_abs
 
-        # Process each target
-        for ped in batch["all_pids"]:
-            for t in reversed(range(self.tsteps + 1)):
-                if ped in batch["frame_pids"][t]:
-                    idx_loc_t =  batch["frame_pids"][t].tolist().index(ped)
-
-                    if(t == 0): # t is starting frame
-                        loc_off[t][idx_loc_t,:]  =  0
-                    elif(ped in batch["frame_pids"][t-1]): # t is not a starting frame
-                        idx_loc_prev_t =  batch["frame_pids"][t-1].tolist().index(ped)
-                        loc_off[t][idx_loc_t] =  loc_off[t][idx_loc_t] -  loc_off[t-1][idx_loc_prev_t]
-                    else:   # t is starting frame
-                        loc_off[t][idx_loc_t,:]  =  0
+        # calculate location offset for each frame.
+        # the first frame has location offset = 0
+        for t in reversed(range(self.tsteps)):
+            if(t == 0): # t is start frame
+                loc_off[t][:]  =  0
+            else:
+                loc_off[t][:] =  loc_off[t][:] -  loc_off[t-1][:]
 
         return loc_off
 
@@ -222,8 +187,9 @@ class DataLoader():
         f.close()
 
         # Get all the data from the pickle file
-        self.all_batches = self.raw_data[0]
-        self.num_batches_list = self.raw_data[1]
+        self.all_batches = self.raw_data
+        self.num_batches_list = [len(self.all_batches[i]) for i in range(self.num_datasets)]
+        print(self.num_batches_list)
 
         # Intilizing list for each mode
         self.train_batch = [] 
@@ -271,27 +237,49 @@ class DataLoader():
         self.logger.write('Total num_validation_batches : {}'.format(sum(self.num_validation_batches_list)))
         self.logger.write('Total num_test_batches : {}'.format(sum(self.num_test_batches_list)))
 
+    def shuffle_data(self):
+        #random.seed(4)
+        self.shuffled_dataset = self.train_dataset
+        random.shuffle(self.shuffled_dataset)
+        self.shuffled_batch = [] 
+        for i in self.shuffled_dataset:
+            batch_idx  = list(range(0,self.num_train_batches_list[i]))
+            random.shuffle(batch_idx)
+            self.shuffled_batch.append(batch_idx)
+
+        self.shuffled_dataset_id = 0 
+        self.shuffled_batch_id = 0 
+
     def next_batch(self, randomUpdate=True, jump = 1):
         '''
         Function to get the next batch of points
         '''
-        # Extract the frame data of the current dataset
-        dataset_idx =self.train_dataset[self.train_dataset_pointer]
-    
-        # Get the frame pointer for the current dataset
-        batch_idx = self.train_batch_pointer
-    
-        # Number of unique peds in this sequence of frames
-        batch_data = self.train_batch[dataset_idx][batch_idx]
-
         # advance the frame pointer to a random point
         if randomUpdate:
-            self.train_dataset_pointer = random.randint(0, len(self.train_dataset) -1 )
-            dataset_idx = self.train_dataset[self.train_dataset_pointer]
-            self.train_batch_pointer = random.randint(0, self.num_train_batches_list[dataset_idx] -1)         
-        else:
+            assert self.shuffled_dataset_id < len(self.shuffled_dataset), "Error:shuffled_dataset_id={}".format(self.shuffled_dataset_id)
+            dataset_idx = self.shuffled_dataset[self.shuffled_dataset_id]
+            batch_idx = self.shuffled_batch[self.shuffled_dataset_id][self.shuffled_batch_id] 
+            batch_data = self.train_batch[dataset_idx][batch_idx]
+
+            # increase shuffled_batch_id by 1, if it is over the len of batch_size of a sequence
+            # reset the shuffled_batch_id and increase shuffled_dataset_id by 1
+            self.shuffled_batch_id = self.shuffled_batch_id + 1
+            if(self.shuffled_batch_id  == len(self.shuffled_batch[self.shuffled_dataset_id])):
+                self.shuffled_batch_id = 0 
+                self.shuffled_dataset_id = self.shuffled_dataset_id + 1
+       
+        else:    
+            # Extract the frame data of the current dataset
+            dataset_idx =self.train_dataset[self.train_dataset_pointer]
+        
+            # Get the frame pointer for the current dataset
+            batch_idx = self.train_batch_pointer
+        
+            # Number of unique peds in this sequence of frames
+            batch_data = self.train_batch[dataset_idx][batch_idx]
             
             self.tick_batch_pointer(train=True, jump = jump)
+
 
         return batch_data
 
@@ -310,6 +298,7 @@ class DataLoader():
         batch_data = self.validation_batch[dataset_idx][batch_idx]
 
         self.tick_batch_pointer(valid=True)
+
    
         return batch_data
 
@@ -326,6 +315,7 @@ class DataLoader():
         batch_data = self.test_batch[dataset_idx][batch_idx]
 
         self.tick_batch_pointer(test=True, jump = jump)
+
    
         return batch_data
 
@@ -336,6 +326,7 @@ class DataLoader():
         if train:
             self.train_batch_pointer += jump                  # Increment batch pointer
             dataset_idx =self.train_dataset[self.train_dataset_pointer]
+
             if self.train_batch_pointer  >= self.num_train_batches_list[dataset_idx] :
                 # Go to the next dataset
                 self.train_dataset_pointer += 1
@@ -394,15 +385,15 @@ class Logger():
         self.train = train
         if(train):
             # open file for record screen 
-            self.train_screen_log_file_path = '{}/train_screen_log.txt'.format(args.log_dir) 
+            self.train_screen_log_file_path = '{}/train_screen_log_{}.txt'.format(args.log_dir,datetime.now().strftime('%Y-%m-%d_%H-%M-%S')) 
             self.train_screen_log_file = open(self.train_screen_log_file_path, 'w')
            
             # open file for recording train loss 
-            self.train_log_file_path = '{}/train_log.txt'.format(args.log_dir) 
+            self.train_log_file_path = '{}/train_log_{}.txt'.format(args.log_dir,datetime.now().strftime('%Y-%m-%d_%H-%M-%S')) 
             self.train_log_file= open(self.train_log_file_path, 'w')
 
         else: 
-            self.test_screen_log_file_path = '{}/test_screen_log.txt'.format(args.log_dir) 
+            self.test_screen_log_file_path = '{}/test_screen_log_{}.txt'.format(args.log_dir,datetime.now().strftime('%Y-%m-%d_%H-%M-%S')) 
             self.test_screen_log_file = open(self.test_screen_log_file_path, 'w')
 
     def write(self, s, record_loss = False):

@@ -23,7 +23,7 @@ def convert_input2output_metric(input_location, dataset_id, input_metric,output_
           output_location = input_location
       elif(output_metric is "pixels"):
           # convert to real pixel values
-          output_location = convert_normalized_pixels_to_pixels(normalized_pixels, dataset_id)   
+          output_location = convert_normalized_pixels_to_pixels(input_location, dataset_id)   
       elif output_metric is "meters":
           # convert to real meter values
           pixels = convert_normalized_pixels_to_pixels(input_location, dataset_id)

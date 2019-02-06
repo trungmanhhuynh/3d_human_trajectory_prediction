@@ -14,52 +14,40 @@ import numpy as np
 
 from models.Alahi_Social_LSTM import Alahi_Social_LSTM
 #from models.Model_Linear import Model_Linear
-from models.Model_LSTM_1L import Model_LSTM_1L
-from models.Model_LSTM_Scene import *
-
+from models.Model_LSTM import Model_LSTM
+from models.Model_LSTM_Scene_common_subgrids import Model_LSTM_Scene_common_subgrids 
 from utils.evaluate import *
 from utils.data_loader import *
 from utils.visualize import *
-
 from config import *
-from grid import get_allow_grids
 from sample import *
 
+def get_model(args):
 
-''' usage: 
-    python test.py --test_dataset 0 --predict_distance   // for Model_LSTM_1L
-    python test.py --test_dataset 0 --predict_distance --use_scene --nonlinear_grids  
-    python test.py --test_dataset 0 --predict_distance --use_scene --all_grids
+    model_dict={
+        "Model_LSTM": Model_LSTM,
+        "Model_LSTM_Scene_common" : Model_LSTM_Scene_common,
+        "Model_LSTM_Scene_common_subgrids" : Model_LSTM_Scene_common_subgrids
+        #"Model_LSTM_Scene_common_subgrids" : Model_LSTM_Scene_common_subgrids,
+        #"Model_LSTM_Scene_common_subgrids_nonlinear" : Model_LSTM_Scene_common_subgrids_nonlinear
+    }
+    return model_dict[args.model_name]
 
-'''
+if __name__ == '__main__':
 
-# Select model 
-model= Model_LSTM_1L
-model_dir = "Model_LSTM_1L_stage1_pixels"
+    args = get_args()          # Get input argurments 
+    args.max_datasets = 5      # Maximum number of sequences could be used for storing scene data
+    args.log_dir = os.path.join(args.save_root , args.dataset_size, args.model_dir, str(args.model_dataset), 'log')
+    args.save_model_dir =  os.path.join(args.save_root , args.dataset_size, args.model_dir, str(args.model_dataset), 'model')
 
-# ---Parsing paramters from config file 
-args.log_dir = './save/{}/v{}/log'.format(model_dir, args.test_dataset)
-args.save_model_dir =  './save/{}/v{}/model'.format(model_dir,args.test_dataset)
-args.save_test_result_pts_dir ='./save/{}/v{}/test_result_pts'.format(model_dir,args.test_dataset)
-#args.save_train_result_pts_dir ='./save/v{}/LSTM_1L_scene_distance_v2/train_result_pts'.format(args.test_dataset)
-#args.save_trajectory_gaussian_dir ='../save_scene_lstm/run0/video0/lstm_scene_social/res_gaussian'
+    logger = Logger(args, train = False)                 # make logging utility
+    logger.write("{}\n".format(args))
+    data_loader = DataLoader(args, logger, train = False)
+    model = get_model(args)
 
+    logger.write('evaluating on test data ......')
+    save_model_file = '{}/best_epoch_model.pt'.format(args.save_model_dir)
+    mse_eval, nde_eval, fde_eval = sample(model, data_loader, save_model_file, args, test = True)
 
-# --- Define logger 
-logger = Logger(args, train = False) # make logging utility
-logger.write("{}\n".format(args))
-
-# --- Load Data object
-print("loading data...")
-data_loader = DataLoader(args, logger, train = False)
-
-#--- Load a trained model 
-save_model_file = '{}/best_epoch_model.pt'.format(args.save_model_dir)
-print("loading best trained model at {}".format(save_model_file))
-
-#--- Calculate mse for test data
-mse, nonLinearMSE, fde = sample(model, data_loader, save_model_file, args, test = True)
-
-#--- Print out results
-logger.write('Testing: mse = {}, non-linear mse = {}, fde = {}'.format(mse, nonLinearMSE, fde))
-
+    # Print out results
+    logger.write('mse_eval: {:.3f}, nde_eval: {:.3f}, fde_eval: {:.3f}'.format(mse_eval, nde_eval, fde_eval))

@@ -78,13 +78,11 @@ def extract_nonlinear_trajectories(batch, args):
 
     """
     nonlinear_traj = []
-    for ped in batch["all_pids"]: 
+    for i, ped in enumerate(batch["all_pids"]): 
         # Gete trajectory of each pedestrian
         traj = [] 
         for t in range(0,args.observe_length + args.predict_length):
-            pid_idx = np.where(batch["frame_pids"][t] == ped)[0]
-            traj.append(batch["loc_abs"][t][pid_idx])
-        
+            traj.append(batch["loc_abs"][t][i])
         traj = np.vstack(traj[:])
         if(check_non_linear_trajectory_v2(traj,thresh = 0.15)): 
             # Check if this traj is non-linear 
@@ -222,8 +220,8 @@ def get_route_info(data_loader, args):
             for t in range(0,numberFrames-1):
 
                 # find location of this ped in frame t and t+1
-                idxInBatch_t = np.where(batch["frame_pids"][t] == ped)[0]
-                idxInBatch_next = np.where(batch["frame_pids"][t+1] == ped)[0]
+                idxInBatch_t = np.where(batch["all_pids"] == ped)[0]
+                idxInBatch_next = np.where(batch["all_pids"] == ped)[0]
 
                 # if this ped does not have location in this or next frame,
                 # continue to next targets.

@@ -6,13 +6,11 @@ import time
 import shutil
 from tqdm import tqdm
 
-
 from torch import nn, optim
 from torch.autograd import Variable
 from matplotlib import pyplot as plt
 import numpy as np
 
-from models.Alahi_Social_LSTM import Alahi_Social_LSTM
 #from models.Model_Linear import Model_Linear
 from models.Model_LSTM_1L import Model_LSTM_1L
 from models.Model_LSTM_Scene_common import Model_LSTM_Scene_common 
@@ -29,6 +27,7 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
     #Define model with train = False to set drop out = 0 
     net = model(data_loader, args, train  = False)
+    net.eval()
     if(args.use_cuda): net = net.cuda() 
     optimizer = optim.RMSprop(net.parameters(), lr = args.learning_rate)
 
@@ -37,6 +36,8 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
     state = torch.load(save_model_file)
     net.load_state_dict(state['state_dict'])
     optimizer.load_state_dict(state['optimizer'])
+    if(args.use_scene):
+        net.set_scene_data(state['scene_states'], state['scene_info'])
 
     # set number of batches for different modes: test/validation
     if(test):num_batches = data_loader.num_test_batches
@@ -44,7 +45,7 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
 
     # Intialize error metrics
     mse = 0; nde = 0 ; fde = 0 
-    mse_batch_cnts = 0 ; nde_batch_cnts = 0; fde_batch_cnts = 0 
+    nde_batch_cnts = 0
     # Process each batch
     for i in tqdm.tqdm(range(0, num_batches)):
 
@@ -52,6 +53,7 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
         if(test): batch  = data_loader.next_test_batch(randomUpdate=False)
         else: batch  = data_loader.next_valid_batch(randomUpdate=False)
         net.init_batch_parameters(batch)                                     # Init hidden states for each target in this batch
+        net.init_target_hidden_states()                                      # Init hidden states for each target in this batch
         optimizer.zero_grad()
 
         result_pts = []                                                      # Init the results
@@ -61,7 +63,7 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
         for t in range(0,args.observe_length):
 
             # Get batch data at time t and t+1
-            cur_frame = {"loc_off": batch["loc_off"][t], "loc_abs": batch["loc_abs"][t], "frame_pids":  batch["frame_pids"][t]}
+            cur_frame = {"loc_off": batch["loc_off"][t], "loc_abs": batch["loc_abs"][t], "frame_pids":  batch["all_pids"]}
             xoff_pred, xabs_pred = net.sample(cur_frame)                    # Sample observered frames to update target's states
             result_pts.append(batch["loc_abs"][t])          # Keep the grouth truth locations
 
@@ -69,10 +71,10 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
         # is used to predict the next #args.predict_length frames
         cur_frame = {"loc_off": batch["loc_off"][args.observe_length-1], 
                      "loc_abs": batch["loc_abs"][args.observe_length-1],
-                     "frame_pids": batch["frame_pids"][args.observe_length-1]}
+                     "frame_pids": batch["all_pids"]}
 
-        predicted_pids = batch["frame_pids"][args.observe_length-1]
-        for t in range(args.observe_length -1, args.observe_length + args.predict_length):
+        predicted_pids = batch["all_pids"]
+        for t in range(args.observe_length -1, args.observe_length + args.predict_length-1):
 
             xoff_pred, xabs_pred = net.sample(cur_frame)        # Calculate predicted location
             result_pts.append(xabs_pred)     # Save result
@@ -80,29 +82,23 @@ def sample(model, data_loader, save_model_file, args, validation = False, test =
             cur_frame["loc_abs"] = xabs_pred
      
         # calculate mse of this batch 
-        mse_valid, batch_mse, numPeds = calculate_mean_square_error(batch, result_pts, predicted_pids, args)
-        if(mse_valid):
-            mse = mse + batch_mse
-            mse_batch_cnts = mse_batch_cnts + numPeds
+        batch_mse = calculate_mean_square_error(batch, result_pts, predicted_pids, args)
+        mse = mse + batch_mse
         # calculate nde of this batch
-        nde_valid, batch_nde, numPeds = calculate_mean_square_error_nonlinear(batch, result_pts, predicted_pids, args)
-        if(nde_valid):
-            nde = nde + batch_nde
-            nde_batch_cnts = nde_batch_cnts + numPeds
+        valid_batch, batch_nde = calculate_mean_square_error_nonlinear(batch, result_pts, predicted_pids, args)
+        nde = nde + batch_nde
+        if(valid_batch): nde_batch_cnts = nde_batch_cnts + 1 
         # calculate fde of this batch 
-        fde_valid, batch_fde, numPeds = calculate_final_displacement_error(batch, result_pts, predicted_pids, args)
-        if(fde_valid):
-            fde = fde + batch_fde
-            fde_batch_cnts = fde_batch_cnts + numPeds
+        batch_fde  = calculate_final_displacement_error(batch, result_pts, predicted_pids, args)
+        fde = fde + batch_fde
      
         # Save trajectories 
         # plot_trajectory_pts_on_images(batch, i, result_pts, predicted_pids, args)
 
     # Final mse, nde , fde 
-    mse = mse/mse_batch_cnts
-    if nde_batch_cnts != 0:
-        nde = nde/nde_batch_cnts
-    fde = fde/fde_batch_cnts
+    mse = mse/num_batches
+    nde = nde/nde_batch_cnts
+    fde = fde/num_batches
 
     return mse, nde , fde
 

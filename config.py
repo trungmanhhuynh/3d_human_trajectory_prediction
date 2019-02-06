@@ -6,7 +6,7 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     # Hardly change 
-    parser.add_argument('--save_root', type=str, default='./save', help='save root')
+    parser.add_argument('--save_root', type=str, default='./save_ablation_trainingsize', help='save root')
     parser.add_argument('--save_freq', type=int, default= 1, help='')
     parser.add_argument('--info_freq', type=int, default=10, help='frequency to print out')
     parser.add_argument('--rnn_size', type=int, default= 128, help='size of RNN hidden state')
@@ -28,14 +28,12 @@ def get_args():
     parser.add_argument('--num_grid_cells', type=int, default= 8, help='number of grids of scene')
     parser.add_argument('--num_sub_grids', type=int, default= 8, help='number of grids inside one grid')
 
-
     # Often changes by using command 
     parser.add_argument('--pre_process',action="store_true", default=False, help='pre-preprocess data')
     parser.add_argument('--use_cuda',action="store_true", default=False, help='using CUDA ?')
     parser.add_argument('--load_best_train',action="store_true", default=False, help='load the best trained model')
     parser.add_argument('--train_dataset', nargs ="*" ,type=int, default=[0 ,1 ,2, 3, 4], help=' this dataset for training ')
     parser.add_argument('--model_dataset', type=int, default= 0, help=' this dataset for training ')
-    parser.add_argument('--test_dataset', type=int, default= 0, help=' this dataset for training ')
     parser.add_argument('--observe_length', type=int, default= 8, help='number of obseved frames')
     parser.add_argument('--predict_length', type=int, default= 12, help='number of predicted frames')
     parser.add_argument('--input_metric', type=str, default= 'pixels', help='specify input metric(meters or pixels)')
@@ -44,11 +42,12 @@ def get_args():
 
     #check these before running
     parser.add_argument('--dataset_size', type=str, default= 'full', help='mini/medium/full')
-    parser.add_argument('--model_name',type=str, default='Model_LSTM', help='name of model')
-    parser.add_argument('--model_dir', type=str, default='Model_LSTM', help='save dir (model,log...)')
+    parser.add_argument('--model_name',type=str, default='Model_LSTM_Scene_nonlinear_subgrids', help='name of model')
+    parser.add_argument('--model_dir', type=str, default='Model_LSTM_Scene_nonlinear_subgrid_0', help='save dir (model,log...)')
+    parser.add_argument('--use_scene',action="store_true", default= True, help='specify if using subgrid map')
     parser.add_argument('--num_common_grids', type=int, default= 0, help='number of grids of scene')
-    parser.add_argument('--use_sub_grids_map',action="store_true", default= False, help='specify if using subgrid map')
-    parser.add_argument('--nonlinear_grids', action="store_true", default=False , help='nonlinear grids are trained')
+    parser.add_argument('--use_subgrid_maps',action="store_true", default= False, help='specify if using subgrid map')
+    parser.add_argument('--use_nonlinear_grids',action="store_true", default= False, help='specify if using subgrid map')
 
     args = parser.parse_args()
     return args
